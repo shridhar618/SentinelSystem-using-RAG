@@ -1,0 +1,9 @@
+# Optional: Retrieval-Augmented Generation over the policy corpus (Phase 6).
+# Large download (sentence-transformers pulls in PyTorch).
+# Needed only for: scripts/ingest_policies.py, scripts/evaluate_rag.py,
+# /api/policies/search and policy re-indexing.
+-r requirements.txt
+langchain-text-splitters==0.3.2
+langchain-community==0.3.7
+sentence-transformers==3.3.1
+qdrant-client==1.12.1

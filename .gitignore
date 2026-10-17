@@ -1,0 +1,30 @@
+node_modules/
+dist/
+build/
+.next/
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+venv311/
+.venv/
+
+# Generated databases and runtime files
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+.env
+.env.*
+backend/instance/*.db
+!.env.example
+!backend/.env.example

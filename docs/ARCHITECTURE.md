@@ -1,0 +1,75 @@
+# Architecture
+
+SecureAI — an **AI Governance & Accountability Platform** for an internal organization. The core idea: general-purpose AI does not know an organization's role boundaries, so every AI request passes through RBAC → rule-based policy compliance → risk scoring → audit → human-reviewed escalation.
+
+## Component view
+```
+React + Vite + Tailwind + Framer Motion  (:3000, proxies /api and /socket.io)
+        │ REST (JWT in Authorization header)         │ Socket.IO (JWT in query)
+        ▼                                            ▼
+Flask app factory (backend/app/__init__.py)  ──  Flask-SocketIO
+ ├─ routes/ (20 blueprints, 90 endpoints)  → see API_DOCUMENTATION.md
+ ├─ utils/authz.py            get_current_user, require_role, require_permission
+ ├─ services/
+ │   ├─ governance.py         rule-based compliance + risk engine (pure Python)
+ │   ├─ permissions.py        permission catalog + role→permission map (pure Python)
+ │   ├─ risk_tracking.py      cumulative risk, case creation, alerts
+ │   ├─ risk_config_service.py  RiskConfiguration table → engine config
+ │   ├─ audit.py              unified audit events
+ │   ├─ notifications.py      persist + real-time emit
+ │   ├─ ai_service.py         Gemini / OpenAI / Ollama(gemma3:4b) + TF-IDF fallback
+ │   ├─ rag_service.py        optional policy retrieval (Qdrant + sentence-transformers)
+ │   ├─ face_attendance.py    OpenCV face detection + face_recognition embeddings
+ │   └─ rate_limit.py         login brute-force limiter
+ └─ models/ (22 tables) → see DATABASE_SCHEMA.md
+SQLite (secureai.db)         Qdrant local index (optional, backend/qdrant_data/)
+```
+
+## The governed request (the critical path)
+```
+LOGIN ─ JWT (expires, default 8h) ─ role + permissions loaded
+  → POST /api/chat
+      permission use_ai_assistant?                 no → 403 + audit
+      active admin Restriction (case restricted)?  yes → 403 + audit
+      message ≤ 4000 chars
+      AI response (provider or TF-IDF question bank)
+      apply_governance(): universal rules → permission-gated rules → role rules
+                          → risk score → validator → policy evidence → recommended action
+      AuditLog row (decision, risk, reason, evidence)
+      record_risk_event(): cumulative score
+          HIGH request      → alert admins (Socket.IO + notification row)
+          cumulative ≥ 1.5  → GovernanceCase(open) + alert
+  → Admin: Review / Warn / Restrict / Restore / Escalate / Resolve / Note
+          (each = AdminAction + audit row; Restrict is enforced on /chat)
+```
+Principles: RBAC authorizes · the rule engine decides · policy documents supply evidence · the LLM only phrases answers · audit records everything · humans decide consequences.
+
+## Modules
+| Area | Backend | Frontend |
+|---|---|---|
+| Governance assistant | `routes/chat.py`, `services/governance.py` | `ChatPage.jsx` |
+| Compliance check | `routes/compliance.py` | via API |
+| Risk config | `routes/risk_config.py` | via API |
+| Cases & alerts | `routes/governance_cases.py`, `routes/notifications.py` | `GovernanceCasesPage`, `TopBar` bell, Dashboard widgets |
+| Audit & dashboards | `routes/logs.py`, `routes/security_events.py`, `routes/me.py` | `DashboardPage` (admin), `MyDashboardPage` (employee) |
+| Policy corpus | `routes/policies.py`, `scripts/ingest_policies.py` | `PolicySourcesPage` |
+| Attendance | `routes/attendance.py`, `services/face_attendance.py` | `FaceAttendancePage`, `FaceUnlockPage` |
+| Tasks / KPI | `routes/work_management.py` | `WorkBoardPage`, `MyWorkPage`, `WorkloadPage`, … |
+| Messaging | `routes/messages.py`, `routes/socket_events.py` | `PrivateChatPage` |
+| Security demo | `ghost_routes.py`, `attack_routes.py` | `GhostModePage`, `AttackSimPage` |
+
+## Security boundaries
+- **Every API route requires a JWT** except `POST /auth/login` and `/auth/register` (disabled). Verified by an AST scan of all 90 routes.
+- Authorization is enforced **server-side** (`require_permission`, `require_role`, inline admin checks); the UI only hides what a role can't use.
+- Socket.IO: private rooms (`user_<id>`) are joined only after JWT verification; Ghost Mode uses a separate `ghost_user_*` namespace so a client-supplied value can never subscribe to another user's messages/alerts. Origins are enforced against `CORS_ORIGINS`.
+- JWTs expire; the UI redirects to login on 401. Passwords hashed (werkzeug). Login rate-limited per (IP, username). 8 MB request cap. JSON-only errors, no stack traces; unhandled errors logged server-side.
+- `DEBUG` is off by default; startup warns if `SECRET_KEY`/`JWT_SECRET_KEY` are defaults (`setup.sh` generates random ones).
+
+## Ghost Mode and Attack Simulation (safety boundary)
+Admin-only **simulations** using canned/dummy data. No credential capture, no keylogging, no real attacks, no surveillance of real users. The admin view is banner-labelled "SIMULATION MODE". Attack Simulation writes clearly-labelled `[SIMULATED]` `security_events` and can clear them.
+
+## Frontend routes
+`/login`, `/welcome`, `/my-dashboard`, `/chat`, `/policy-sources`*, `/governance-cases`*, `/dashboard`*, `/ghost-mode`*, `/attack-sim`*, `/user-access`*, `/question-bank`*, `/attendance`, `/my-work`, `/workload`, `/work-assignments`†, `/work-board`†, `/work-escalations`†, `/messages` (* admin, † manager). Sidebar sections appear only if the role has something in them.
+
+## Deliberate simplifications (MCA-capstone scope)
+SQLite instead of Postgres; no migration framework (idempotent `_ensure_*` helpers); in-memory rate limiter; single-process Socket.IO; RAG is optional and offline from the decision path.

@@ -1,0 +1,26 @@
+# Phase 22 — RAG Safety: Implementation Notes
+
+## What was already true, verified rather than assumed
+
+Before changing anything, I checked each of the brief's 5 safety requirements against the actual code:
+
+1. **"Retrieved content is evidence, not executable instructions"** and **2. "Don't allow policy documents to override system security rules"** — grepped `governance.py`, `chat.py`, and `compliance.py` for any reference to `PolicyChunk` or `retrieve_policy_evidence`: **zero matches**. The authorization decision is made entirely by the rule-based engine using role/permissions (Phases 8–9); retrieved document content has never been read by the decision logic at any point, because (per Phase 6's deliberate decision) RAG retrieval isn't wired into the live chat flow at all yet. This isn't a coincidence to take credit for — it's a direct consequence of Phase 6's choice not to rush retrieval into the governed response before it was verified.
+4. **"Do not fabricate policy citations"** — Phase 5's static lookup table only ever returns citations I personally verified against documents I personally authored; Phase 6's `retrieve_policy_evidence()` only ever returns real `PolicyChunk` rows found via vector search, never generates a citation that doesn't correspond to an actual indexed chunk.
+5. **"Show source document metadata"** — already true: both the static citations (document name + section) and RAG results (`document_name`, `category`, `section`, `page`, `score`) carry this.
+
+## What was genuinely missing
+
+**3. The exact "insufficient policy evidence" fallback didn't exist.** If the governance engine ever blocks a request without a specific policy citation backing the decision, nothing said so — it just gave the generic blocked message as if it were equally well-grounded as a cited one. Added this exact check to `_recommended_action_for()`: a `blocked` decision with no supporting `policy_evidence` now returns the brief's precise required language — *"Insufficient policy evidence to make a reliable governance decision"* — plus a recommendation that an administrator review the case, rather than implying a confidence the system doesn't actually have.
+
+Worth noting honestly: under the **current** rule set, every single trigger that can produce a `blocked` status already has a corresponding citation in Phase 5's lookup tables, so this new branch isn't reachable through any scenario today — I verified this by checking that every label in all three rule groups (`UNIVERSAL_BLOCKED_RULES`, `PERMISSION_GATED_RULES`, `INTERN_ONLY_CAUTION_RULES`) has a matching entry in `_INTERN_RULE_POLICY_MAP`. This is deliberately a **safety net for the future**, not currently-exercised logic: if someone later adds a new regex to one of these rule groups without remembering to add a matching citation, the system will now honestly say so instead of silently omitting evidence while still sounding equally authoritative.
+
+**A proactive guardrail for when RAG does get wired into generation.** `rag_service.py` gained `sanitize_retrieved_content()` — a defense-in-depth function that neutralizes instruction-injection patterns (`"ignore previous instructions"`, `"you are now..."`, `"system prompt:"`, etc.) in retrieved text. It is **not currently called anywhere** — nothing in this codebase interpolates retrieved chunk text into an LLM prompt today, so there's nothing to protect yet. It exists so that when Phase 6's retrieval is eventually connected to live generation (a decision explicitly deferred pending your confirmation it works — see Phase 6's notes), that integration has a sanitization step ready rather than needing one designed under time pressure later. The attack surface here is lower-probability than a typical user-prompt injection, since policy documents are admin-uploaded rather than arbitrary user input, but the org's own policy documents are themselves retrievable content, so defense-in-depth still applies.
+
+## Verified for real
+
+- **5 executable tests** on the insufficient-evidence fallback: 3 regression checks (existing well-cited blocked scenarios still get their specific message, not the fallback), a direct unit test of the function itself confirming both branches produce the correct, distinct messages, and a check that the fallback is correctly scoped to `blocked` only (not `filtered`/`allowed`, where a lack of citation is normal and expected).
+- **7 executable tests** on `sanitize_retrieved_content()`: 4 real injection-pattern attempts, all correctly neutralized, and 3 pieces of genuinely legitimate policy text (including text that discusses credentials/passwords/restrictions in a normal explanatory way) confirmed **unchanged** — important because overly broad patterns could have mangled real policy content that legitimately discusses these topics.
+
+## What I could NOT verify
+
+Whether `sanitize_retrieved_content()`'s regex patterns would hold up against more creative or adversarial injection phrasing than the four I tested — this is inherently an arms-race problem with no library solution integrated here, and pattern-matching is a reasonable but not foolproof defense. Also unverified, as always: the Flask-level behavior of the modified `governance.py` against a real request.
