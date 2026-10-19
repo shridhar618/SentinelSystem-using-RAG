@@ -20,6 +20,7 @@ import MyWorkPage from './pages/MyWorkPage'
 import WorkBoardPage from './pages/WorkBoardPage'
 import WorkEscalationsPage from './pages/WorkEscalationsPage'
 import AdminCreateUserPage from './pages/AdminCreateUserPage'
+import CinematicLanding from './pages/CinematicLanding'
 import { isManagerRole } from './utils/roles'
 
 function ProtectedRoute({ children, adminOnly = false, managerOnly = false }) {
@@ -57,7 +58,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/" element={user ? <Layout /> : <CinematicLanding />}>
         <Route index element={<Navigate to="/welcome" replace />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
