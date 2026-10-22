@@ -38,6 +38,24 @@ cd frontend && npm install && npm run dev      # http://localhost:3000
 ```
 Docker: `docker compose up --build` (frontend on :3000).
 
+### Deploy on Render
+
+This repository includes a Render Blueprint in [`render.yaml`](render.yaml).
+It deploys the frontend and backend as one same-origin Docker web service, so
+API requests and Socket.IO do not need a separate proxy or frontend service.
+
+1. Push this repository to GitHub.
+2. In Render, choose **New → Blueprint** and select the repository.
+3. Confirm the generated `SECRET_KEY` and `JWT_SECRET_KEY` values, then deploy.
+4. Set `AI_PROVIDER` to `gemini` and add `GEMINI_API_KEY` in the Render
+   service environment if you want hosted model responses. The default
+   `mock` provider keeps the deployment usable without an external AI key.
+
+The Blueprint uses a small persistent disk for the SQLite prototype database.
+For production or multiple instances, use a managed PostgreSQL database and
+set `DATABASE_URL` to its connection string. Replace `CORS_ORIGINS=*` with the
+exact public origin if the frontend is later split into a separate service.
+
 ### Demo accounts
 | Role | Username | Login code | Password |
 |---|---|---|---|

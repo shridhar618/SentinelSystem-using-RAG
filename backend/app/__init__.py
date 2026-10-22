@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy import inspect, text
 import datetime as _datetime
 import os
+from pathlib import Path
 import secrets
 import string
 import sys
@@ -35,7 +36,9 @@ def _resolve_socketio_async_mode() -> str:
 
 
 def create_app():
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend-dist"
     app = Flask(__name__)
+    app.config["FRONTEND_DIST"] = frontend_dist
 
     # Config
     default_secret = "dev-secret-key"
@@ -139,6 +142,28 @@ def create_app():
     app.register_blueprint(governance_cases_bp, url_prefix="/api")
     app.register_blueprint(ghost_bp, url_prefix="/api")
     app.register_blueprint(attack_bp, url_prefix="/api")
+
+    @app.get("/api/health")
+    def health_check():
+        return jsonify({"status": "ok"})
+
+    if frontend_dist.is_dir():
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        def serve_frontend(path):
+            if path.startswith(("api/", "socket.io")):
+                return jsonify({"error": "Not found"}), 404
+
+            requested_file = (frontend_dist / path).resolve()
+            if (
+                path
+                and requested_file.is_relative_to(frontend_dist.resolve())
+                and requested_file.is_file()
+            ):
+                return send_from_directory(frontend_dist, path)
+            if path and Path(path).suffix:
+                return jsonify({"error": "Not found"}), 404
+            return send_from_directory(frontend_dist, "index.html")
 
     # Socket events
     from app.routes import socket_events  # noqa
