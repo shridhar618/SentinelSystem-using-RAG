@@ -1,5 +1,5 @@
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUpRight, Activity, Check, FileCheck2, LockKeyhole, Shield, Sparkles, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -168,10 +168,35 @@ function WorkflowCarousel({ shouldReduceMotion }) {
 export default function CinematicLanding() {
   const navigate = useNavigate()
   const shouldReduceMotion = useReducedMotion()
+  const methodRef = useRef(null)
   const { scrollYProgress } = useScroll()
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 90, damping: 30, mass: 0.4 })
   const coreY = useTransform(smoothProgress, [0, 0.35], [0, shouldReduceMotion ? 0 : 120])
   const coreRotate = useTransform(smoothProgress, [0, 0.35], [-3, shouldReduceMotion ? -3 : 10])
+  const methodOffset = useMotionValue(0)
+  const methodX = useSpring(methodOffset, { stiffness: 120, damping: 28, mass: 0.45 })
+
+  useEffect(() => {
+    const updateMethodOffset = () => {
+      if (shouldReduceMotion || window.innerWidth < 761 || !methodRef.current) {
+        methodOffset.set(0)
+        return
+      }
+      const rect = methodRef.current.getBoundingClientRect()
+      const sectionTop = rect.top + window.scrollY
+      const start = sectionTop - 140
+      const end = start + window.innerHeight * 0.8
+      const progress = Math.max(0, Math.min(1, (window.scrollY - start) / (end - start)))
+      methodOffset.set(-((window.innerWidth / 3) + 24) * progress)
+    }
+    updateMethodOffset()
+    window.addEventListener('resize', updateMethodOffset)
+    window.addEventListener('scroll', updateMethodOffset, { passive: true })
+    return () => {
+      window.removeEventListener('resize', updateMethodOffset)
+      window.removeEventListener('scroll', updateMethodOffset)
+    }
+  }, [methodOffset, shouldReduceMotion])
 
   return (
     <div className="landing-page">
@@ -294,17 +319,19 @@ export default function CinematicLanding() {
           </Reveal>
         </section>
 
-        <section id="method" className="landing-method">
+        <section id="method" ref={methodRef} className="landing-method">
           <Reveal className="landing-section-title"><span className="landing-eyebrow">The method</span><i /></Reveal>
-          <div className="landing-cards">
-            {DECISION_STEPS.map(([number, title, text], index) => (
-              <Reveal key={number} delay={index * 0.1}>
-                <article>
-                <span>{number}</span>
-                <div><h3>{title}</h3><p>{text}</p></div>
-                </article>
-              </Reveal>
-            ))}
+          <div className="landing-cards-viewport">
+            <motion.div className="landing-cards" style={{ x: methodX }}>
+              {DECISION_STEPS.map(([number, title, text], index) => (
+                <Reveal key={number} delay={index * 0.1}>
+                  <article>
+                    <span>{number}</span>
+                    <div><h3>{title}</h3><p>{text}</p></div>
+                  </article>
+                </Reveal>
+              ))}
+            </motion.div>
           </div>
           <Reveal className="landing-flow">
             <span className="landing-eyebrow">Every request follows a clear path</span>
