@@ -30,7 +30,9 @@ def _resolve_socketio_async_mode() -> str:
     configured_mode = (os.getenv("SOCKETIO_ASYNC_MODE") or "").strip().lower()
     if configured_mode:
         return configured_mode
-    if sys.version_info >= (3, 14):
+    # eventlet does not support Python 3.13+ (greenlet ABI changed).
+    # Use threading for 3.13+; eventlet is fine on 3.11/3.12.
+    if sys.version_info >= (3, 13):
         return "threading"
     return "eventlet"
 

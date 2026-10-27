@@ -115,19 +115,15 @@ def face_verify():
         return jsonify({"error": "image_base64 is required"}), 400
 
     try:
-        profile, score = match_face(image_payload)
+        # Verify only against the credential enrolled for this authenticated
+        # account, using the same account-scoped match as attendance.
+        profile, score = match_face(image_payload, user_id=user.id)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
     if not profile:
         return jsonify({
             "error": "Face not recognized for this account.",
-            "confidence": round(float(score), 4),
-        }), 403
-
-    if profile.user_id != user.id:
-        return jsonify({
-            "error": "Face does not match the logged in account.",
             "confidence": round(float(score), 4),
         }), 403
 

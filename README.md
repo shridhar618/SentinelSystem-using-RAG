@@ -13,13 +13,13 @@ Organizations have employees with different roles and permissions, but general-p
 3. **Transparent rule-based risk engine** (not ML) with admin-configurable weights/thresholds.
 4. **Cumulative risk → governance case → human decision** (warn / restrict / restore / escalate / resolve). Nothing is auto-terminated.
 5. **Real-time alerts** (Socket.IO), **audit log** of everything (AI requests, logins, admin actions, config/policy changes), **security events**.
-6. **Policy corpus** (NIST AI RMF docs + 4 organization policies) with an optional RAG pipeline (LangChain, sentence-transformers, Qdrant, Gemma via Ollama).
+6. **Policy-grounded chatbot** — retrieves active company policy passages and uses a configured LLM to answer with source references, scoped to the signed-in user's role.
 7. Supporting modules: face-recognition attendance, Kanban tasks, KPI/workload, private messaging, Ghost Mode and Attack Simulation (safe, labelled simulations).
 
 **Principles:** RBAC authorizes · the rule engine decides · policy documents provide evidence · the LLM explains · audit records · humans decide consequences.
 
 ## Tech stack
-Backend: Python, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-SocketIO · Frontend: React, Vite, Tailwind, Framer Motion, Recharts · DB: SQLite · AI/RAG (optional): LangChain, sentence-transformers, Qdrant, Ollama `gemma3:4b` (also Gemini/OpenAI; offline TF-IDF fallback) · Vision (optional): OpenCV + face_recognition · Tests: pytest · CI: GitHub Actions.
+Backend: Python, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-SocketIO · Frontend: React, Vite, Tailwind, Framer Motion, Recharts · DB: SQLite · AI/RAG: sentence-transformers, Qdrant, and a configured Ollama, Gemini, or OpenAI LLM · Vision (optional): OpenCV + face_recognition · Tests: pytest · CI: GitHub Actions.
 
 ## Quick start
 Requires Python 3.11+ and Node 18+.
@@ -65,12 +65,29 @@ exact public origin if the frontend is later split into a separate service.
 
 Demo credentials are for local use only. Create further roles (Manager, Software Engineer, Supervisor, Guest…) in **Admin → User Access**.
 
-## Optional feature packs (the app runs without them)
+## Enable policy chat (RAG + LLM)
+
+The chat requires a built policy index and a working LLM provider. From `backend/`:
+
+```bash
+source venv/bin/activate                 # Windows: venv\Scripts\activate
+pip install -r requirements-rag.txt
+```
+
+Configure `AI_PROVIDER` in `backend/.env` as `gemini`, `openai`, or `ollama`, then set the matching API key (`GEMINI_API_KEY` or `OPENAI_API_KEY`) or install Ollama and pull a model (`ollama pull gemma3:4b`). Build the index against the same database used by the running app:
+
+```bash
+python scripts/ingest_policies.py
+```
+
+Restart the backend. The chatbot status shows whether the LLM and policy retrieval are ready. It will not produce policy answers from the demo question bank if either service is unavailable.
+
+## Optional feature packs
 | Pack | Install | Enables |
 |---|---|---|
-| RAG | `pip install -r requirements-rag.txt` then `python scripts/ingest_policies.py` | Policy retrieval, ingestion, re-index, RAG evaluation |
+| RAG | Included in the policy chat setup above | Policy retrieval, ingestion, re-index, RAG evaluation |
 | Face recognition | `pip install -r requirements-face.txt` | Real face enrollment/verification. `dlib` can be hard to build on Windows — see the file's header for the conda route |
-| Local LLM | install [Ollama](https://ollama.com), `ollama pull gemma3:4b`, set `AI_PROVIDER=ollama` | Gemma-4B answers; otherwise the offline TF-IDF answer path is used |
+| Local LLM | install [Ollama](https://ollama.com), `ollama pull gemma3:4b`, set `AI_PROVIDER=ollama` | Local Gemma-4B answers for the policy chatbot |
 
 ## Environment variables
 All documented in `backend/.env.example` (every variable there is actually read by the code): `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_ACCESS_TOKEN_EXPIRES_HOURS`, `CORS_ORIGINS` (**must include the origin you open the app from** — Socket.IO enforces it), `DATABASE_URL`, `PORT`, `DEBUG` (keep `0`), `AI_PROVIDER` + provider keys.
@@ -86,11 +103,11 @@ All documented in `backend/.env.example` (every variable there is actually read 
 ## Honest limitations
 - The author's environment had no network, so **the full pytest suite and the running app were not executed end-to-end before delivery**; static checks and the pure-Python logic tests were. Run `pytest` and `npm run build` first; see `docs/TESTING.md`.
 - The rule engine has known coverage gaps (e.g. "personal addresses" phrasing isn't caught as PII; single keyword hits move the score little) — documented with evidence in `docs/RISK_ENGINE.md`.
-- RAG is built and evaluable but **not wired into live decisions**, by design; the NIST Privacy Framework, OWASP GenAI Top 10 and DPDP Act PDFs were not supplied and are not in the corpus.
+- The policy chatbot only knows the documents present in the indexed corpus. Add approved company policies through the policy management workflow and re-index them.
 - Face recognition accuracy has not been tested with a real camera.
 - SQLite, in-memory login rate limiter, single-process Socket.IO — fine for a prototype, not for production scale. No migration framework.
 - Ghost Mode / Attack Simulation are simulations with dummy data only.
 
 ## Future scope
-Wire RAG evidence into the response after evaluation; broaden/learn detection rules and add a labelled dataset; priority field on tasks; Redis-backed rate limiting and Socket.IO scaling; Postgres + Alembic; SSO; per-department policy sets.
+Broaden/learn detection rules and add a labelled dataset; priority field on tasks; Redis-backed rate limiting and Socket.IO scaling; Postgres + Alembic; SSO; per-department policy sets.
 # SentinelSystem-using-RAG

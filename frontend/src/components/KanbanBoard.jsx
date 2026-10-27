@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronRight, GitBranch, Github, TimerReset } from 'lucide-react'
@@ -11,6 +11,7 @@ const COLUMNS = [
   { id: 'todo', label: 'To Do' },
   { id: 'in_progress', label: 'In Progress' },
   { id: 'review', label: 'Code Review' },
+  { id: 'blocked', label: 'Blocked' },
   { id: 'completed', label: 'Completed' },
 ]
 
@@ -19,6 +20,7 @@ const STATUS_STYLES = {
   todo: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-200',
   in_progress: 'border-amber-500/20 bg-amber-500/10 text-amber-200',
   review: 'border-sky-500/20 bg-sky-500/10 text-sky-200',
+  blocked: 'border-rose-500/20 bg-rose-500/10 text-rose-200',
   completed: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200',
 }
 
@@ -63,6 +65,8 @@ function TaskCard({ task, busyTaskId }) {
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.55 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    touchAction: 'none',
   }
 
   return (
@@ -232,8 +236,8 @@ export default function KanbanBoard({ tasks = [], onTasksChange, onError, onSucc
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-5">
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
         {COLUMNS.map(column => {
           const columnTasks = localTasks.filter(task => task.status === column.id)
           return (

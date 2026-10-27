@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
+import LandingPage from './pages/LandingPage'
 import WelcomePage from './pages/WelcomePage'
 import ChatPage from './pages/ChatPage'
 import PrivateChatPage from './pages/PrivateChatPage'
@@ -45,6 +46,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/welcome" replace /> : <LoginPage />} />
+      <Route path="/landing" element={user ? <Navigate to="/welcome" replace /> : <LandingPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
 
       <Route path="/welcome" element={
@@ -58,7 +60,11 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+<<<<<<< HEAD
       <Route path="/" element={user ? <Layout /> : <CinematicLanding />}>
+=======
+      <Route path="/" element={user ? <Layout /> : <Navigate to="/landing" replace />}>
+>>>>>>> b15d2e4 (completed project)
         <Route index element={<Navigate to="/welcome" replace />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
@@ -74,7 +80,7 @@ function AppRoutes() {
         } />
 
         <Route path="work-board" element={
-          <ProtectedRoute managerOnly>
+          <ProtectedRoute>
             <WorkBoardPage />
           </ProtectedRoute>
         } />
@@ -128,7 +134,7 @@ function AppRoutes() {
         } />
       </Route>
 
-      <Route path="*" element={<Navigate to="/welcome" replace />} />
+      <Route path="*" element={<Navigate to={user ? '/welcome' : '/landing'} replace />} />
     </Routes>
   )
 }

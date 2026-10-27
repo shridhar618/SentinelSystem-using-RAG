@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -80,38 +80,47 @@ def mark_attendance():
     if not image_payload:
         return jsonify({"error": "image_base64 is required"}), 400
 
+    # Attendance is an action on the authenticated account. Never allow a
+    # globally matched face to select a different account (including for
+    # admin/HR); face verification and attendance must identify the same user.
+    actor_profile = FaceProfile.query.filter_by(user_id=actor.id).first()
+    if not actor_profile:
+        return jsonify({"error": "No face credential is enrolled for this account. Contact admin."}), 403
+
     try:
-        profile, score = match_face(image_payload)
+        matched_profile, score = match_face(image_payload, user_id=actor.id)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    actor_profile = FaceProfile.query.filter_by(user_id=actor.id).first()
-    if not actor_profile and not _is_admin_or_hr(actor):
-        return jsonify({"error": "No face credential is enrolled for this account. Contact admin."}), 403
-
-    if not profile:
+    if not matched_profile:
         return jsonify({
-            "error": "Face does not match any enrolled employee profile",
+            "error": "Face does not match the logged in account",
             "confidence": round(float(score), 4),
-        }), 404
+        }), 403
 
-    matched_user = db.session.get(User, profile.user_id)
-    if not matched_user:
-        return jsonify({"error": "Matched user no longer exists"}), 404
+    if matched_profile.user_id != actor.id:
+        return jsonify({
+            "error": "Face does not match the logged in account",
+            "confidence": round(float(score), 4),
+        }), 403
 
-    if actor.id != matched_user.id and not _is_admin_or_hr(actor):
-        return jsonify({"error": "You can only mark attendance for your own profile"}), 403
-
+    # Start the in/out sequence fresh each UTC day. Looking at the last event
+    # across all time could make the first scan today a check-out.
+    now = datetime.now(UTC)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
     last_record = (
         AttendanceRecord.query
-        .filter_by(user_id=matched_user.id)
+        .filter(
+            AttendanceRecord.user_id == actor.id,
+            AttendanceRecord.created_at >= start_of_day,
+        )
         .order_by(AttendanceRecord.created_at.desc())
         .first()
     )
     event_type = "check_in" if not last_record or last_record.event_type == "check_out" else "check_out"
 
     record = AttendanceRecord(
-        user_id=matched_user.id,
+        user_id=actor.id,
         event_type=event_type,
         confidence=score,
         source="face_recognition",

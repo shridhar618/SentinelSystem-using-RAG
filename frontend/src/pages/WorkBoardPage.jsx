@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronRight, KanbanSquare, RefreshCw } from 'lucide-react'
@@ -8,15 +8,20 @@ import { ChevronDown, ChevronRight, KanbanSquare, RefreshCw } from 'lucide-react
 import api from '../utils/api'
 
 const COLUMNS = [
+  { id: 'draft', label: 'Drafts' },
   { id: 'todo', label: 'To Do' },
   { id: 'in_progress', label: 'In Progress' },
+  { id: 'review', label: 'Review' },
   { id: 'blocked', label: 'Blocked' },
   { id: 'completed', label: 'Completed' },
 ]
 
 const STATUS_STYLES = {
-  todo: 'text-warn border-warn/20 bg-warn/10',
+  draft: 'text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/10',
+  pending: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/10',
+  todo: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/10',
   in_progress: 'text-accent border-accent/20 bg-accent/10',
+  review: 'text-purple-400 border-purple-500/20 bg-purple-500/10',
   blocked: 'text-danger border-danger/20 bg-danger/10',
   completed: 'text-success border-success/20 bg-success/10',
 }
@@ -31,7 +36,7 @@ function formatPercent(value) {
   return `${Math.round((Number(value || 0)) * 100)}%`
 }
 
-function BoardColumn({ column, children }) {
+function BoardColumn({ column, count = 0, children }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `column:${column.id}`,
     data: { status: column.id },
@@ -40,15 +45,25 @@ function BoardColumn({ column, children }) {
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-2xl border p-4 min-h-[24rem] transition-colors ${
-        isOver ? 'border-accent/30 bg-accent/5' : 'border-white/5 bg-white/[0.03]'
+      className={`rounded-2xl border p-4 min-h-[22rem] transition-colors ${
+        isOver ? 'border-accent/40 bg-accent/5' : 'border-white/5 bg-white/[0.03]'
       }`}
     >
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-bold text-white">{column.label}</p>
-        <span className="text-[10px] text-slate-500 font-mono">{children.length} items</span>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono border ${STATUS_STYLES[column.id] || STATUS_STYLES.todo}`}>
+          {count} {count === 1 ? 'task' : 'tasks'}
+        </span>
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-3 min-h-[14rem]">
+        {count > 0 ? (
+          children
+        ) : (
+          <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-slate-600">
+            Drop tasks here
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -63,6 +78,8 @@ function AssignmentCard({ item, escalatingId, onEscalate }) {
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.65 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    touchAction: 'none',
   }
 
   return (
@@ -380,20 +397,23 @@ export default function WorkBoardPage() {
                 <p className="text-[11px] text-slate-600 mt-1">Try clearing the search or filter selections above</p>
               </div>
             ) : (
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {COLUMNS.map(column => (
-                  <BoardColumn key={column.id} column={column}>
-                    {groupedAssignments[column.id]?.map(item => (
-                      <AssignmentCard
-                        key={item.id}
-                        item={item}
-                        escalatingId={escalatingId}
-                        onEscalate={handleEscalate}
-                      />
-                    )) || []}
-                  </BoardColumn>
-                ))}
+            <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
+                {COLUMNS.map(column => {
+                  const columnItems = groupedAssignments[column.id] || []
+                  return (
+                    <BoardColumn key={column.id} column={column} count={columnItems.length}>
+                      {columnItems.map(item => (
+                        <AssignmentCard
+                          key={item.id}
+                          item={item}
+                          escalatingId={escalatingId}
+                          onEscalate={handleEscalate}
+                        />
+                      ))}
+                    </BoardColumn>
+                  )
+                })}
               </div>
             </DndContext>
             )}

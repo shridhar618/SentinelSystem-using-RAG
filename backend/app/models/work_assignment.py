@@ -143,14 +143,8 @@ class WorkAssignment(db.Model):
 
         if expected_units > 0 and total_completed_units >= expected_units:
             self.status = "completed"
-        elif self.status == "blocked":
-            return
-        elif total_completed_units > 0:
+        elif total_completed_units > 0 and self.status in {"pending", "draft", "todo"}:
             self.status = "in_progress"
-        elif self.status in {"todo", "draft"}:
-            return
-        else:
-            self.status = "pending"
         return self.status
 
     def to_dict(self, include_progress=False, include_children=False):

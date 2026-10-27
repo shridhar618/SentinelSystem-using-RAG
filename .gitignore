@@ -22,6 +22,7 @@ venv311/
 *.sqlite
 *.sqlite3
 instance/
+backend/qdrant_data/
 
 .env
 .env.*

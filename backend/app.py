@@ -1,7 +1,9 @@
 import os
 import sys
 
-if sys.version_info < (3, 14):
+# eventlet monkey-patching must happen before any other imports and is only
+# safe on Python < 3.13 (eventlet's greenlet ABI is broken on 3.13+).
+if sys.version_info < (3, 13):
     import eventlet
 
     eventlet.monkey_patch()
@@ -19,4 +21,4 @@ if __name__ == "__main__":
     # zero configuration was reachable from the network with the debugger
     # console exposed. Now opt-in via DEBUG=1 for local development.
     debug = os.getenv("DEBUG", "0").lower() in {"1", "true", "yes", "on"}
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug, use_reloader=debug, allow_unsafe_werkzeug=True)

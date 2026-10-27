@@ -16,8 +16,10 @@ scikit-learn==1.5.1
 numpy==1.26.4
 pypdf==5.4.0
 Pillow==10.4.0
+# opencv-contrib-python includes CascadeClassifier + FaceDetectorYN (YuNet)
+# for the built-in face attendance feature.  No dlib or face_recognition needed.
+opencv-contrib-python>=4.10.0
 pytest==8.3.2
 
 # OPTIONAL feature packs (the app runs without them and degrades gracefully):
 #   pip install -r requirements-rag.txt     # policy RAG: LangChain + embeddings + Qdrant
-#   pip install -r requirements-face.txt    # real face recognition for attendance

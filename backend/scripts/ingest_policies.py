@@ -159,6 +159,11 @@ def ensure_collection(client, vector_size: int):
         )
 
 
+def _qdrant_point_id(value: str):
+    """Match numeric IDs stored in SQLite to Qdrant's integer point IDs."""
+    return int(value) if value.isdigit() else value
+
+
 def ingest_one_document(path: Path, db, PolicyDocument, PolicyChunk, model, client):
     """Ingests a single file. Extracted from ingest() so both the CLI
     script and the Phase 14 admin "Re-index" API action share one
@@ -176,7 +181,11 @@ def ingest_one_document(path: Path, db, PolicyDocument, PolicyChunk, model, clie
     else:
         doc.file_path = str(path)  # backfills documents ingested before this field was tracked
 
-    old_point_ids = [c.qdrant_point_id for c in doc.chunks if c.qdrant_point_id]
+    old_point_ids = [
+        _qdrant_point_id(c.qdrant_point_id)
+        for c in doc.chunks
+        if c.qdrant_point_id
+    ]
     PolicyChunk.query.filter_by(document_id=doc.id).delete()
     db.session.flush()
     if old_point_ids:

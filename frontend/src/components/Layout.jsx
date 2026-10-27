@@ -57,11 +57,11 @@ export default function Layout() {
       items: [
         { to: '/attendance', icon: ScanFace, label: 'Attendance', desc: 'Face check-in/out' },
         { to: '/my-work', icon: Briefcase, label: 'My Work', desc: 'Assigned tasks' },
+        { to: '/work-board', icon: KanbanSquare, label: 'Work Board', desc: 'Kanban status view' },
         { to: '/workload', icon: BarChart3, label: 'KPI / Workload', desc: 'Task analytics' },
         ...(isManager
           ? [
               { to: '/work-assignments', icon: ClipboardList, label: 'Work Assign', desc: 'Manager workspace' },
-              { to: '/work-board', icon: KanbanSquare, label: 'Work Board', desc: 'Kanban status view' },
               { to: '/work-escalations', icon: AlertTriangle, label: 'Escalations', desc: 'Resolve risks' },
             ]
           : []),

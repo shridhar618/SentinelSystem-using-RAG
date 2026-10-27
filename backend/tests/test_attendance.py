@@ -20,6 +20,20 @@ def _sample_face_image(seed=0):
     return f"data:image/png;base64,{encoded}"
 
 
+def _different_face_image():
+    image = Image.new("L", (64, 64), color=220)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((8, 8, 56, 56), fill=40)
+    draw.ellipse((16, 16, 30, 30), fill=220)
+    draw.ellipse((34, 16, 48, 30), fill=220)
+    draw.line((18, 44, 46, 20), fill=220, width=4)
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 def test_employee_cannot_self_register_face(client, auth_headers):
     response = client.post(
         "/api/face/register",
@@ -94,3 +108,34 @@ def test_attendance_mark_uses_admin_enrolled_face(client, auth_headers, users):
     )
     assert attendance_response.status_code == 201, attendance_response.get_json()
     assert attendance_response.get_json()["record"]["username"] == "face_user"
+
+
+def test_attendance_rejects_different_face_for_logged_in_account(client, auth_headers):
+    create_response = client.post(
+        "/api/admin/create-user",
+        headers=auth_headers("admin", "admin123"),
+        json={
+            "username": "strict_face_user",
+            "role": "intern",
+            "image_base64": _sample_face_image(),
+        },
+    )
+    assert create_response.status_code == 201, create_response.get_json()
+    login_code = create_response.get_json()["login_code"]
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={"username": "strict_face_user", "login_code": login_code},
+    )
+    assert login_response.status_code == 200, login_response.get_json()
+    token = login_response.get_json()["token"]
+    headers = {"Authorization": "Bearer " + token}
+
+    response = client.post(
+        "/api/attendance/mark",
+        headers=headers,
+        json={"image_base64": _different_face_image()},
+    )
+
+    assert response.status_code == 403, response.get_json()
+    assert response.get_json()["error"] == "Face does not match the logged in account"

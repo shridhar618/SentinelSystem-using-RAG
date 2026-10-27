@@ -152,8 +152,10 @@ export default function FaceAttendancePage() {
       await loadMyAttendance()
       await loadTeamAttendance()
     } catch (err) {
-      setStatusTone('danger')
-      setStatusMessage(err?.response?.data?.error || 'Face recognition request failed.')
+      const message = err?.response?.data?.error || 'Face recognition request failed.'
+      const faceRejected = err?.response?.status === 403
+      setStatusTone(faceRejected ? 'warn' : 'danger')
+      setStatusMessage(faceRejected ? `Attendance not marked: ${message}` : message)
     } finally {
       setBusy(false)
     }

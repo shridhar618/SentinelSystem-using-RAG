@@ -86,6 +86,67 @@ def get_ai_response(messages: list[dict]) -> str:
     return _mock_response(messages)
 
 
+def get_grounded_ai_response(messages: list[dict], system_prompt: str) -> str:
+    """Generate a policy-grounded response without silently falling back to demo text."""
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    if provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not api_key or api_key.startswith("your-"):
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        try:
+            from openai import OpenAI
+            response = OpenAI(api_key=api_key).chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                messages=[{"role": "system", "content": system_prompt}, *messages],
+                max_tokens=800,
+                temperature=0.2,
+            )
+            answer = response.choices[0].message.content
+            if not answer:
+                raise RuntimeError("The LLM returned an empty response")
+            return answer.strip()
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            raise RuntimeError(f"OpenAI generation failed: {exc}") from exc
+    if provider == "gemini":
+        try:
+            return generate_text_response(
+                messages,
+                system_prompt=system_prompt,
+                model_name=os.getenv("GEMINI_MODEL"),
+                temperature=0.2,
+                max_output_tokens=800,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Gemini generation failed: {exc}") from exc
+    if provider == "ollama":
+        try:
+            prompt_lines = [system_prompt.strip(), ""]
+            prompt_lines.extend(
+                f"{'Assistant' if item.get('role') == 'assistant' else 'User'}: {item.get('content', '')}"
+                for item in messages
+            )
+            prompt_lines.append("Assistant:")
+            return generate_ollama_text("\n".join(prompt_lines))
+        except Exception as exc:
+            raise RuntimeError(f"Ollama generation failed: {exc}") from exc
+    raise RuntimeError(f"Unsupported AI_PROVIDER '{provider}'. Use gemini, openai, or ollama.")
+
+
+def llm_status() -> dict[str, Any]:
+    provider = os.getenv("AI_PROVIDER", "gemini").strip().lower()
+    if provider == "gemini":
+        configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
+    elif provider == "openai":
+        configured = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    elif provider == "ollama":
+        configured = True
+    else:
+        configured = False
+    return {"provider": provider, "configured": configured}
+
+
 def get_ai_json_response(
     prompt: str,
     *,

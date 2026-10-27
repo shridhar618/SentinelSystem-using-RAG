@@ -512,8 +512,8 @@ def list_assignments():
 @jwt_required()
 def get_work_board():
     actor = _current_user()
-    if not _is_admin_or_hr(actor):
-        return jsonify({"error": "Manager access required"}), 403
+    if not actor:
+        return jsonify({"error": "User not found"}), 404
 
     assignments = (
         _assignment_query(actor, include_drafts=True, root_only=True).all()
@@ -527,7 +527,7 @@ def get_work_board():
             _serialize_assignment(item, include_progress=True, board_view=True, include_children=True)
             for item in assignments
         ],
-        "columns": ["todo", "in_progress", "blocked", "completed"],
+        "columns": ["draft", "todo", "in_progress", "review", "blocked", "completed"],
         "count": len(assignments),
     }), 200
 
@@ -589,23 +589,28 @@ def submit_progress_update(assignment_id):
 @jwt_required()
 def update_assignment_status(assignment_id):
     actor = _current_user()
-    if not _is_admin_or_hr(actor):
-        return jsonify({"error": "Manager access required"}), 403
+    if not actor:
+        return jsonify({"error": "User not found"}), 404
 
     assignment = _load_assignment_for_update(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
+
+    if not _is_admin_or_hr(actor) and assignment.assigned_to_user_id != actor.id:
+        return jsonify({"error": "You do not have permission to update this assignment"}), 403
 
     data = request.get_json() or {}
     status = (data.get("status") or "").strip()
     if status not in BOARD_ALLOWED_STATUSES:
         return jsonify({"error": "Invalid status"}), 400
 
-    assignment.sync_status_from_progress()
     if assignment.has_children and status == "completed" and assignment.status != "completed":
         return jsonify({"error": "Parent assignments complete automatically when all descendants are completed"}), 400
+
     assignment.status = status
-    assignment.sync_status_from_progress()
+    if assignment.parent:
+        assignment.parent.sync_status_from_progress()
+
     _write_audit_log(actor, f"Updated assignment '{assignment.title}' status to {assignment.status}")
     db.session.commit()
 
