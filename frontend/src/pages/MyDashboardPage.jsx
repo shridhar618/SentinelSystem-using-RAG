@@ -10,9 +10,9 @@ import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 
 const RISK_STYLE = {
-  LOW: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#06d6a0' },
-  MEDIUM: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#ffb703' },
-  HIGH: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#ff4d6d' },
+  LOW: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#4f9a6a' },
+  MEDIUM: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#c9922e' },
+  HIGH: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#c4553f' },
 }
 
 const DECISION_STYLE = {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import ThemeToggle from './ThemeToggle'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Bell, ChevronDown, LogOut, Menu } from 'lucide-react'
@@ -20,6 +21,11 @@ const PAGE_TITLES = {
   '/question-bank': { title: 'Question Bank', desc: 'Governed Q&A dataset operations' },
   '/ghost-mode': { title: 'Ghost Mode', desc: 'Controlled security intervention simulation' },
   '/attack-sim': { title: 'Attack Simulator', desc: 'Safe, labeled security event generation' },
+  '/my-dashboard': { title: 'My Dashboard', desc: 'Your usage, risk and tasks at a glance' },
+  '/workload': { title: 'KPI / Workload', desc: 'Task analytics across your team' },
+  '/policy-sources': { title: 'Policy Sources', desc: 'The governance corpus behind every answer' },
+  '/governance-cases': { title: 'Governance Cases', desc: 'Review and escalations' },
+  '/blockchain-explorer': { title: 'Blockchain Explorer', desc: 'Tamper-evident audit hash chain' },
 }
 
 const SEARCH_TARGETS = [
@@ -143,30 +149,30 @@ export default function TopBar({ onToggleMobileNav }) {
   }
 
   return (
-    <header className="h-16 flex items-center gap-4 px-6 border-b border-white/5 glass z-10 shrink-0">
+    <header className="ui-top">
       <button
         onClick={onToggleMobileNav}
-        className="lg:hidden w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-accent hover:border-accent/30 transition-colors"
+        className="lg:hidden ui-circle"
         aria-label="Toggle navigation"
       >
         <Menu size={16} />
       </button>
 
-      <div className="min-w-0 hidden sm:block">
-        <h2 className="text-sm font-bold text-white truncate">{currentPage.title}</h2>
-        {currentPage.desc && <p className="text-[11px] text-slate-500 truncate">{currentPage.desc}</p>}
+      <div className="min-w-0 hidden sm:flex flex-col gap-1">
+        <span className="ui-eyebrow truncate">{currentPage.title}</span>
+        {currentPage.desc && <p className="ui-top__desc truncate">{currentPage.desc}</p>}
       </div>
 
       <div className="flex-1" />
 
       <div ref={searchRef} className="relative w-full max-w-xs hidden md:block">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 z-10" />
         <input
           value={searchQuery}
           onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true) }}
           onFocus={() => setSearchOpen(true)}
           placeholder="Search modules..."
-          className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-accent/40 focus:bg-white/[0.07] transition-colors"
+          className="ui-search"
         />
         <AnimatePresence>
           {searchOpen && filteredResults.length > 0 && (
@@ -174,7 +180,7 @@ export default function TopBar({ onToggleMobileNav }) {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="absolute top-full mt-2 left-0 right-0 glass border border-white/10 rounded-xl shadow-card overflow-hidden"
             >
               {filteredResults.map((item) => (
@@ -191,10 +197,12 @@ export default function TopBar({ onToggleMobileNav }) {
         </AnimatePresence>
       </div>
 
+      <ThemeToggle className="ui-circle" />
+
       <div ref={notifRef} className="relative">
         <button
           onClick={handleOpenNotifications}
-          className="relative w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-accent hover:border-accent/30 transition-colors"
+          className="relative ui-circle"
           aria-label="Notifications"
         >
           <Bell size={15} />
@@ -210,7 +218,7 @@ export default function TopBar({ onToggleMobileNav }) {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="absolute top-full mt-2 right-0 w-80 glass border border-white/10 rounded-xl shadow-card overflow-hidden"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
@@ -276,9 +284,9 @@ export default function TopBar({ onToggleMobileNav }) {
       <div ref={profileRef} className="relative">
         <button
           onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false) }}
-          className="flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
+          className="ui-profile"
         >
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent/30 to-purple/30 border border-accent/20 flex items-center justify-center text-[11px] font-bold text-accent">
+          <div className="ui-avatar ui-avatar--sm">
             {user?.username?.[0]?.toUpperCase()}
           </div>
           <ChevronDown size={12} className="text-slate-500 hidden sm:block" />
@@ -289,7 +297,7 @@ export default function TopBar({ onToggleMobileNav }) {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="absolute top-full mt-2 right-0 w-56 glass border border-white/10 rounded-xl shadow-card overflow-hidden"
             >
               <div className="px-4 py-3 border-b border-white/5">

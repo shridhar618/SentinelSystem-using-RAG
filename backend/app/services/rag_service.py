@@ -54,6 +54,9 @@ def _get_client():
     except ImportError as exc:
         _unavailable_reason = f"qdrant-client not installed: {exc}"
         return None
+    except Exception as exc:
+        _unavailable_reason = f"Qdrant index unavailable: {exc}"
+        return None
 
 
 _INJECTION_PATTERNS = [

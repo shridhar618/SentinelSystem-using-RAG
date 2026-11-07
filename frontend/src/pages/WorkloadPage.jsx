@@ -4,6 +4,7 @@ import { ClipboardList, CheckCircle2, Clock, AlertTriangle, TrendingUp, Briefcas
 import { useAuth } from '../context/AuthContext'
 import { isManagerRole } from '../utils/roles'
 import api from '../utils/api'
+import { useTheme } from '../utils/theme'
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -20,14 +21,16 @@ function StatCard({ icon: Icon, label, value, color }) {
 }
 
 function WorkloadCards({ summary }) {
+  const [theme] = useTheme()
+  const ACCENT = theme === 'dark' ? '#ef5539' : '#7fa95b'
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <StatCard icon={ClipboardList} label="Assigned Tasks" value={summary.assigned_tasks} color="#00e5ff" />
-      <StatCard icon={CheckCircle2} label="Completed" value={summary.completed_tasks} color="#06d6a0" />
-      <StatCard icon={Clock} label="Pending" value={summary.pending_tasks} color="#ffb703" />
-      <StatCard icon={AlertTriangle} label="Overdue" value={summary.overdue_tasks} color="#ff4d6d" />
-      <StatCard icon={TrendingUp} label="Completion Rate" value={`${Math.round(summary.completion_rate * 100)}%`} color="#a78bfa" />
-      <StatCard icon={Briefcase} label="Active Workload" value={summary.workload} color="#60a5fa" />
+      <StatCard icon={ClipboardList} label="Assigned Tasks" value={summary.assigned_tasks} color={ACCENT} />
+      <StatCard icon={CheckCircle2} label="Completed" value={summary.completed_tasks} color="#4f9a6a" />
+      <StatCard icon={Clock} label="Pending" value={summary.pending_tasks} color="#c9922e" />
+      <StatCard icon={AlertTriangle} label="Overdue" value={summary.overdue_tasks} color="#c4553f" />
+      <StatCard icon={TrendingUp} label="Completion Rate" value={`${Math.round(summary.completion_rate * 100)}%`} color="#8a7bb8" />
+      <StatCard icon={Briefcase} label="Active Workload" value={summary.workload} color="#5f86a8" />
     </div>
   )
 }

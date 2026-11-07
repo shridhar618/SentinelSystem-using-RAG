@@ -50,6 +50,17 @@ class AuditLog(db.Model):
     # ───────────────────────────────────────────────────────────────────────
 
     timestamp        = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+
+    # Tamper-evident hash chain (Blockchain Explorer) ─────────────────────
+    # Written once by services/ledger.py right after the row is inserted;
+    # never set these by hand. chain_hash covers the row's content plus the
+    # previous block's hash, so editing or deleting any earlier row breaks
+    # every link after it. NULL means "not sealed yet".
+    chain_seq        = db.Column(db.Integer, nullable=True, index=True)
+    chain_prev_hash  = db.Column(db.String(64), nullable=True)
+    chain_hash       = db.Column(db.String(64), nullable=True, index=True)
+    # ───────────────────────────────────────────────────────────────────────
+
     query            = _AuditLogMessageAccessor()
 
     def to_dict(self):

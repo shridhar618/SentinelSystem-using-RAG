@@ -306,7 +306,7 @@ export default function WorkAssignmentsWorkspacePage() {
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full overflow-y-auto">
         <div className="space-y-6 px-6 py-6">
-          <div className="rounded-[32px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.12),transparent_35%),linear-gradient(135deg,rgba(8,16,31,0.96),rgba(7,12,20,0.92))] p-6 shadow-[0_28px_80px_rgba(4,9,20,0.38)]">
+          <div className="rounded-[32px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(127,169,91,0.12),transparent_35%),linear-gradient(135deg,rgb(var(--bg-800)),rgb(var(--bg-700)))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.12)]">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-2xl">
                 <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-accent">Project-based Workflow</p>
@@ -329,9 +329,9 @@ export default function WorkAssignmentsWorkspacePage() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
-              <div className="rounded-[24px] border border-white/8 bg-[#08111f]/80 p-4">
+              <div className="rounded-[24px] border border-white/8 bg-bg-900/80 p-4">
                 <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.18em] text-slate-500">Active Project</label>
-                <select value={selectedProjectId} onChange={event => setSelectedProjectId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-[#08111f] px-4 py-3 text-sm text-white outline-none transition focus:border-accent/40">
+                <select value={selectedProjectId} onChange={event => setSelectedProjectId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-bg-900 px-4 py-3 text-sm text-white outline-none transition focus:border-accent/40">
                   <option value="">Select a project</option>
                   {projects.map(project => (
                     <option key={project.id} value={project.id}>
@@ -369,9 +369,9 @@ export default function WorkAssignmentsWorkspacePage() {
                 </div>
 
                 <div className="space-y-4">
-                  <input name="title" value={taskForm.title} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Task title" className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
-                  <textarea name="description" value={taskForm.description} onChange={handleTaskFieldChange} rows={4} disabled={selectedProject.is_archived} placeholder="Describe the work item" className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
-                  <select name="parent_id" value={taskForm.parent_id} onChange={handleTaskFieldChange} disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50">
+                  <input name="title" value={taskForm.title} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Task title" className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
+                  <textarea name="description" value={taskForm.description} onChange={handleTaskFieldChange} rows={4} disabled={selectedProject.is_archived} placeholder="Describe the work item" className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
+                  <select name="parent_id" value={taskForm.parent_id} onChange={handleTaskFieldChange} disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50">
                     <option value="">Top-level task</option>
                     {flatTaskOptions.map(task => (
                       <option key={task.id} value={task.id}>
@@ -379,17 +379,17 @@ export default function WorkAssignmentsWorkspacePage() {
                       </option>
                     ))}
                   </select>
-                  <select name="assigned_to_user_id" value={taskForm.assigned_to_user_id} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50">
+                  <select name="assigned_to_user_id" value={taskForm.assigned_to_user_id} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50">
                     <option value="">Assign to</option>
                     {assignableUsers.map(user => (
                       <option key={user.id} value={user.id}>{user.username} ({user.role})</option>
                     ))}
                   </select>
                   <div className="grid grid-cols-2 gap-3">
-                    <input name="expected_units" type="number" min="0" step="0.01" value={taskForm.expected_units} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Expected units" className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
-                    <input name="weight" type="number" min="0" step="0.01" value={taskForm.weight} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Weight" className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
+                    <input name="expected_units" type="number" min="0" step="0.01" value={taskForm.expected_units} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Expected units" className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
+                    <input name="weight" type="number" min="0" step="0.01" value={taskForm.weight} onChange={handleTaskFieldChange} required disabled={selectedProject.is_archived} placeholder="Weight" className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
                   </div>
-                  <input name="due_date" type="date" value={taskForm.due_date} onChange={handleTaskFieldChange} disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
+                  <input name="due_date" type="date" value={taskForm.due_date} onChange={handleTaskFieldChange} disabled={selectedProject.is_archived} className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40 disabled:opacity-50" />
                 </div>
 
                 <p className="mt-4 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-xs text-slate-500">
@@ -426,7 +426,7 @@ export default function WorkAssignmentsWorkspacePage() {
                   <p className="mt-2 text-sm text-slate-400">
                     Draft tasks are now part of the Kanban board itself. Drag a task from <span className="font-semibold text-fuchsia-200">Drafts</span> to <span className="font-semibold text-cyan-200">To Do</span> to approve it into active delivery.
                   </p>
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-[#08111f] px-4 py-4 text-sm text-slate-400">
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-bg-900 px-4 py-4 text-sm text-slate-400">
                     <p>{pendingTasks.length} draft tasks currently exist for this project.</p>
                     <p className="mt-2 text-xs text-slate-500">The dedicated pending endpoint is still loaded in the background for count verification, but the visual workflow now lives on the board.</p>
                   </div>
@@ -439,7 +439,7 @@ export default function WorkAssignmentsWorkspacePage() {
                   </div>
                   <div className="space-y-3">
                     {!taskTree.length ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-[#08111f] px-4 py-6 text-xs text-slate-500">
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-bg-900 px-4 py-6 text-xs text-slate-500">
                         No tasks in this project yet.
                       </div>
                     ) : (
@@ -488,7 +488,7 @@ function TaskTreeNode({ task, depth, expandedTaskIds, onToggle, onCreateSubtask 
   const isExpanded = expandedTaskIds[task.id] ?? true
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#08111f]">
+    <div className="rounded-2xl border border-white/10 bg-bg-900">
       <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div className="min-w-0 flex-1" style={{ paddingLeft: `${depth * 14}px` }}>
           <div className="flex items-center gap-2">

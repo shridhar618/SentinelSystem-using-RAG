@@ -381,6 +381,7 @@ def test_admin_and_hr_can_create_assignment(client, auth_headers, users, app):
         audit_queries = [
             row.query
             for row in db.session.query(AuditLog).order_by(AuditLog.id.asc()).all()
+            if row.query and row.query.startswith("Created work assignment")
         ]
         assert len(audit_queries) == 2
         assert "Created work assignment" in audit_queries[0]

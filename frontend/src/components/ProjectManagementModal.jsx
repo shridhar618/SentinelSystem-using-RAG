@@ -50,8 +50,8 @@ export default function ProjectManagementModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#02060d]/80 px-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#07111f] shadow-[0_30px_120px_rgba(0,0,0,0.45)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-bg-800 shadow-[0_30px_120px_rgba(0,0,0,0.45)]">
         <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
           <div>
             <p className="text-xs font-mono uppercase tracking-[0.2em] text-accent">Project Operations</p>
@@ -106,7 +106,7 @@ export default function ProjectManagementModal({
                     value={createForm.name}
                     onChange={onCreateFormChange}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
+                    className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
                   />
                 </div>
                 <div>
@@ -118,7 +118,7 @@ export default function ProjectManagementModal({
                     value={createForm.description}
                     onChange={onCreateFormChange}
                     rows={4}
-                    className="w-full rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
+                    className="w-full rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
                   />
                 </div>
                 <button
@@ -162,7 +162,7 @@ export default function ProjectManagementModal({
                     <select
                       value={memberUserId}
                       onChange={event => onMemberUserIdChange(event.target.value)}
-                      className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#08111f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
+                      className="min-w-0 flex-1 rounded-xl border border-white/10 bg-bg-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-accent/40"
                     >
                       <option value="">Select a user</option>
                       {memberOptions.map(option => (
@@ -187,7 +187,7 @@ export default function ProjectManagementModal({
                   <div className="mt-4 space-y-3">
                     {selectedProject.members?.length ? (
                       selectedProject.members.map(member => (
-                        <div key={member.user_id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#08111f] px-4 py-3">
+                        <div key={member.user_id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-bg-900 px-4 py-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-white">{member.user?.username}</p>
                             <p className="truncate text-xs text-slate-400">{member.user?.email}</p>

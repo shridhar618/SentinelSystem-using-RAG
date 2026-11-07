@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { AlertCircle, LockKeyhole, ScanFace } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import SiteHeader from '../components/SiteHeader'
+import { fadeIn, heroLine, panelIn, useHeroParallax } from '../utils/motion'
+import './landing.css'
 
 export default function FaceUnlockPage() {
   const { faceVerified, markFaceVerified } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const reduce = useReducedMotion()
+  const heroRef = useRef(null)
+  useHeroParallax(heroRef)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -86,59 +92,56 @@ export default function FaceUnlockPage() {
     }
   }
 
+  const { logout } = useAuth()
+  const lines = [['Verify', 'ink'], ['your', 'ink'], ['face.', 'green']]
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-900 grid-bg p-4">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[30rem] h-[30rem] bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="w-full max-w-xl glass rounded-2xl p-6 shadow-card border border-white/8"
-      >
-        <div className="text-center mb-5">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 border border-accent/30 mb-3">
-            <LockKeyhole size={24} className="text-accent" />
+    <div className="sa">
+      <SiteHeader
+        links={[
+          { label: 'Face unlock', to: '/face-unlock', active: true },
+          { label: 'Sign out', onClick: () => { logout(); navigate('/login', { replace: true }) }, tone: 'end' },
+        ]}
+      />
+      <section ref={heroRef} className="sa-hero sa-login" aria-labelledby="unlock-title">
+        <div className="sa-hero__art" aria-hidden="true"><LockKeyhole strokeWidth={0.75} /></div>
+        <div className="sa-hero__inner sa-login__inner">
+          <div className="sa-hero__copy">
+            <motion.span className="sa-eyebrow" {...fadeIn(0.2, { y: 10, duration: 1.2 })}>
+              Identity check
+            </motion.span>
+            <h1 id="unlock-title" className="sa-hero__title">
+              {lines.map(([line, tone], i) => (
+                <span className="sa-line" key={line}>
+                  <motion.span
+                    className={`sa-line__inner ${tone === 'green' ? 'is-green' : ''}`}
+                    {...heroLine(i, reduce)}
+                  >
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
+            </h1>
+            <motion.p className="sa-hero__lead" {...fadeIn(0.9)}>
+              Verify your face to access SecureAI. Face enrollment is completed by an admin when your account is created — if unlock fails because no face is enrolled, contact your admin.
+            </motion.p>
           </div>
-          <h1 className="text-2xl font-bold text-white">Face Unlock Required</h1>
-          <p className="text-slate-500 mt-1 text-sm font-mono tracking-wide">Verify your face to access SecureAI</p>
+
+          <motion.div className="sa-panel sa-form" {...panelIn(0.55)}>
+            <span className="sa-eyebrow">Camera</span>
+            <div className="sa-camera">
+              <video ref={videoRef} autoPlay playsInline muted />
+              {!cameraReady && <span className="sa-camera__idle"><ScanFace size={34} strokeWidth={1.4} /></span>}
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+            {cameraError && <div className="sa-form__error" role="alert"><AlertCircle size={14} /> {cameraError}</div>}
+            {error && <div className="sa-form__error" role="alert"><AlertCircle size={14} /> {error}</div>}
+            <button type="button" onClick={verifyFace} disabled={!cameraReady || loading} className="sa-btn sa-btn--primary sa-btn--lg sa-btn--block">
+              {loading ? 'Verifying…' : 'Unlock with face'} <span className="sa-btn__badge"><ScanFace size={16} /></span>
+            </button>
+          </motion.div>
         </div>
-
-        <div className="rounded-xl overflow-hidden border border-white/10 bg-bg-800">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-[300px] object-cover" />
-        </div>
-        <canvas ref={canvasRef} className="hidden" />
-
-        {cameraError && (
-          <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
-            <AlertCircle size={14} />
-            {cameraError}
-          </div>
-        )}
-        {error && (
-          <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
-            <AlertCircle size={14} />
-            {error}
-          </div>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            onClick={verifyFace}
-            disabled={!cameraReady || loading}
-            className="flex-1 min-w-[14rem] py-3 rounded-xl bg-accent text-bg-900 font-bold text-sm tracking-wide hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed shadow-glow"
-          >
-            <ScanFace size={15} className="inline mr-2" />
-            {loading ? 'Verifying...' : 'Unlock With Face'}
-          </motion.button>
-        </div>
-
-        <p className="mt-4 text-xs text-slate-500">
-          Face enrollment is completed by admin when your account is created. If unlock fails because no face is enrolled, contact admin.
-        </p>
-      </motion.div>
+      </section>
     </div>
   )
 }

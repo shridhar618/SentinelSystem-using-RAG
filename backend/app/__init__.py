@@ -121,6 +121,7 @@ def create_app():
     from app.routes.security_events import security_events_bp
     from app.routes.me import me_bp
     from app.routes.governance_cases import governance_cases_bp
+    from app.routes.explorer import explorer_bp
     from app.ghost_routes import ghost_bp
     from app.attack_routes import attack_bp
 
@@ -142,6 +143,7 @@ def create_app():
     app.register_blueprint(security_events_bp, url_prefix="/api")
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(governance_cases_bp, url_prefix="/api")
+    app.register_blueprint(explorer_bp, url_prefix="/api")
     app.register_blueprint(ghost_bp, url_prefix="/api")
     app.register_blueprint(attack_bp, url_prefix="/api")
 
@@ -205,6 +207,7 @@ def create_app():
         _seed_permissions()
         _seed_role_permissions()
         _seed_risk_configuration()
+        _seal_audit_chain()
 
     # Phase 21/23: this is a JSON API. Without these, an unhandled exception
     # (500) or an unmatched route (404) previously fell through to Flask's
@@ -231,6 +234,18 @@ def create_app():
         return jsonify({"error": "An internal error occurred. Please try again or contact an administrator."}), 500
 
     return app
+
+
+def _seal_audit_chain():
+    """Chain any audit rows that predate the hash chain (one-time backfill).
+
+    Importing services.ledger also registers the after_insert listener that
+    seals every new AuditLog as it is written.
+    """
+    from app.services import ledger
+
+    if ledger.seal_pending(db.session.connection()):
+        db.session.commit()
 
 
 def _generate_login_code(length: int = 10) -> str:
@@ -311,6 +326,13 @@ def _ensure_audit_log_columns():
         statements.append("ALTER TABLE audit_logs ADD COLUMN resource VARCHAR(255)")
     if "metadata" not in columns:
         statements.append("ALTER TABLE audit_logs ADD COLUMN metadata TEXT")
+    # Blockchain Explorer hash chain (see services/ledger.py).
+    if "chain_seq" not in columns:
+        statements.append("ALTER TABLE audit_logs ADD COLUMN chain_seq INTEGER")
+    if "chain_prev_hash" not in columns:
+        statements.append("ALTER TABLE audit_logs ADD COLUMN chain_prev_hash VARCHAR(64)")
+    if "chain_hash" not in columns:
+        statements.append("ALTER TABLE audit_logs ADD COLUMN chain_hash VARCHAR(64)")
 
     # Phase 32: the dashboard and audit page sort/filter on these every
     # request; CREATE INDEX IF NOT EXISTS is idempotent and works on tables
@@ -320,6 +342,8 @@ def _ensure_audit_log_columns():
         "CREATE INDEX IF NOT EXISTS ix_audit_logs_timestamp ON audit_logs (timestamp)",
         "CREATE INDEX IF NOT EXISTS ix_audit_logs_user_id ON audit_logs (user_id)",
         "CREATE INDEX IF NOT EXISTS ix_audit_logs_status ON audit_logs (status)",
+        "CREATE INDEX IF NOT EXISTS ix_audit_logs_chain_seq ON audit_logs (chain_seq)",
+        "CREATE INDEX IF NOT EXISTS ix_audit_logs_chain_hash ON audit_logs (chain_hash)",
     ]
     for statement in statements:
         db.session.execute(text(statement))

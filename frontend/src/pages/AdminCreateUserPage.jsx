@@ -268,7 +268,7 @@ export default function AdminCreateUserPage() {
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
                   <div className="space-y-3">
-                    <div className="rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                    <div className="rounded-xl overflow-hidden border border-white/10 bg-bg-700">
                       <video ref={videoRef} autoPlay playsInline muted className="w-full h-[280px] object-cover" />
                     </div>
                     <canvas ref={canvasRef} className="hidden" />
@@ -284,7 +284,7 @@ export default function AdminCreateUserPage() {
                     </button>
                   </div>
 
-                  <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-3">
+                  <div className="rounded-xl border border-dashed border-white/10 bg-bg-900/60 p-3">
                     {faceSnapshot ? (
                       <img src={faceSnapshot} alt="Captured employee face" className="w-full h-[280px] object-cover rounded-lg" />
                     ) : (

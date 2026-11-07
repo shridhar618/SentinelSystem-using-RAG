@@ -2,25 +2,33 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { MotionConfig } from 'framer-motion'
 import App from './App.jsx'
+import { initializeTheme } from './utils/theme'
 import './index.css'
+import './styles/shell.css'
+
+initializeTheme()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      {/* Default for every motion element without its own timing: slow, soft ease-out. */}
+      <MotionConfig transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}>
+        <App />
+      </MotionConfig>
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
-            background: '#0d1220',
-            color: '#e2e8f0',
-            border: '1px solid rgba(255,255,255,0.08)',
-            fontFamily: 'Syne, sans-serif',
+            background: 'rgb(var(--bg-800))',
+            color: 'rgb(var(--ink))',
+            border: '1px solid rgb(var(--line))',
+            fontFamily: 'Inter, sans-serif',
             fontSize: '14px',
           },
-          success: { iconTheme: { primary: '#06d6a0', secondary: '#080c14' } },
-          error: { iconTheme: { primary: '#ff4d6d', secondary: '#080c14' } },
+          success: { iconTheme: { primary: 'rgb(var(--success))', secondary: 'rgb(var(--bg-800))' } },
+          error: { iconTheme: { primary: 'rgb(var(--danger))', secondary: 'rgb(var(--bg-800))' } },
         }}
       />
     </BrowserRouter>

@@ -1,0 +1,399 @@
+/* ==========================================================================
+   SecureAI app shell + page language — same design as the landing page
+   (ShareLock/Revelio): paper or ink background, Syne 800 uppercase headlines,
+   sage orb, spaced green eyebrows, pill buttons, rounded cream cards.
+   ========================================================================== */
+
+/* ---------- Shared atoms ---------- */
+.ui-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: rgb(var(--eyebrow));
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+.ui-eyebrow::before {
+  content: '';
+  flex: none;
+  width: 0.42rem;
+  height: 0.42rem;
+  border: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.ui-eyebrow--sm { font-size: 0.6rem; letter-spacing: 0.28em; gap: 0.5rem; }
+.ui-eyebrow--sm::before { width: 0.34rem; height: 0.34rem; }
+
+.ui-circle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--accent-soft) / 0.85);
+  background: transparent;
+  color: rgb(var(--ink));
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ui-circle:hover { background: rgb(var(--accent-soft) / 0.18); }
+@media (min-width: 1024px) { .ui-circle.lg\:hidden { display: none; } }
+
+.ui-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--btn-a), var(--btn-b));
+  color: var(--btn-ink);
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.ui-avatar--sm { width: 1.9rem; height: 1.9rem; font-size: 0.78rem; }
+
+/* ---------- Sidebar ---------- */
+.ui-app { background: transparent; }
+
+.ui-side {
+  flex-direction: column;
+  width: 17rem;
+  background: rgb(var(--bg-900) / 0.96);
+  border-right: 1px solid rgb(var(--accent-soft) / 0.35);
+}
+.ui-side--mobile { display: flex; width: 18rem; background: rgb(var(--bg-900)); }
+
+.ui-side__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 4.75rem;
+  flex: none;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid rgb(var(--accent-soft) / 0.35);
+}
+.ui-brand { display: inline-flex; align-items: center; gap: 0.6rem; background: none; border: 0; cursor: pointer; color: rgb(var(--tone-400)); }
+.ui-brand__mark { display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; }
+.ui-brand__name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.01em; }
+
+.ui-side__user {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 1rem 1rem 0.25rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgb(var(--line));
+  border-radius: 1.25rem;
+  background: rgb(var(--bg-800));
+}
+.ui-side__username { font-weight: 600; font-size: 0.88rem; color: rgb(var(--ink)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-side__email { font-size: 0.7rem; color: rgb(var(--tone-500)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-role {
+  flex: none;
+  padding: 0.12rem 0.5rem;
+  border-width: 1px;
+  border-radius: 999px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.ui-side__nav { flex: 1; min-height: 0; overflow-y: auto; padding: 0.4rem 0.9rem 1rem; }
+.ui-side__group { margin-top: 1.15rem; }
+.ui-side__group > .ui-eyebrow { margin: 0 0 0.45rem 0.7rem; }
+.ui-side__group ul { display: flex; flex-direction: column; gap: 0.1rem; list-style: none; margin: 0; padding: 0; }
+
+.ui-navlink {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: rgb(var(--tone-400));
+  font-family: 'Syne', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.45s ease, background 0.45s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ui-navlink svg { flex: none; opacity: 0.75; }
+.ui-navlink:hover { color: rgb(var(--ink)); background: rgb(var(--accent-soft) / 0.16); transform: translateX(2px); }
+.ui-navlink { position: relative; isolation: isolate; }
+.ui-navlink.is-active { color: rgb(var(--ink)); }
+.ui-navlink.is-active:hover { transform: none; background: transparent; }
+.ui-navlink__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: rgb(var(--accent-soft) / 0.24);
+  border: 1px solid rgb(var(--accent-soft) / 0.85);
+}
+.ui-navlink.is-active svg { opacity: 1; color: rgb(var(--accent)); }
+
+.ui-side__foot { flex: none; padding: 0.9rem 1.25rem 1.2rem; border-top: 1px solid rgb(var(--tone-500) / 0.25); }
+.ui-signout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: rgb(var(--accent));
+  font-family: 'Syne', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.ui-signout:hover { color: rgb(var(--danger)); background: rgb(var(--danger) / 0.08); }
+
+/* ---------- Top bar ---------- */
+.ui-top {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: none;
+  height: 4.75rem;
+  padding: 0 clamp(1rem, 2.5vw, 2.25rem);
+  background: rgb(var(--bg-900) / 0.94);
+  border-bottom: 1px solid rgb(var(--accent-soft) / 0.35);
+}
+.ui-top__desc { font-size: 0.78rem; color: rgb(var(--tone-500)); }
+.ui-search {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 1rem 0 2.6rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--accent-soft) / 0.85);
+  background: rgb(var(--bg-800) / 0.75);
+  color: rgb(var(--ink));
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ui-search::placeholder { color: rgb(var(--tone-600)); }
+.ui-search:focus { border-color: rgb(var(--accent)); box-shadow: 0 0 0 3px rgb(var(--accent-soft) / 0.3); }
+.ui-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.6rem 0.22rem 0.22rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--accent-soft) / 0.85);
+  background: transparent;
+  cursor: pointer;
+}
+.ui-profile:hover { background: rgb(var(--accent-soft) / 0.16); }
+
+/* ==========================================================================
+   Page language — applied to every page rendered inside the shell.
+   Rules sit above Tailwind utilities by specificity, never with !important.
+   The Blockchain Explorer keeps its own Revelio styles (.rv).
+   ========================================================================== */
+
+/* Page headline: Syne 800, uppercase, tight — with the sage orb behind it. */
+.ui-main h1:not(.rv h1) {
+  position: relative;
+  isolation: isolate;
+  max-width: 100%;
+  margin-top: 0.3rem;
+  color: rgb(var(--ink));
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 3.6vw, 3.4rem);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+/* Accent rule that draws in under every page title (replaces the orb). */
+.ui-main h1:not(.rv h1)::after {
+  content: '';
+  display: block;
+  width: 3.5rem;
+  height: 3px;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  background: var(--rule);
+  transform-origin: left center;
+  animation: uiRuleDraw 1.6s 0.5s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+/* Title reveal: rises out of a mask, like the landing headline. */
+.ui-main h1:not(.rv h1) {
+  animation: uiTitleIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes uiTitleIn {
+  from { opacity: 0; transform: translateY(0.45em); clip-path: inset(0 0 100% 0); filter: blur(10px); }
+  to { opacity: 1; transform: none; clip-path: inset(0 0 -20% 0); filter: blur(0); }
+}
+@keyframes uiRuleDraw {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+/* Page entrance: each block of the page fades up in sequence on route change. */
+.ui-page > * > * {
+  animation: uiRise 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+.ui-page > * > *:nth-child(1) { animation-delay: 0.05s; }
+.ui-page > * > *:nth-child(2) { animation-delay: 0.17s; }
+.ui-page > * > *:nth-child(3) { animation-delay: 0.29s; }
+.ui-page > * > *:nth-child(4) { animation-delay: 0.41s; }
+.ui-page > * > *:nth-child(5) { animation-delay: 0.53s; }
+.ui-page > * > *:nth-child(n + 6) { animation-delay: 0.65s; }
+@keyframes uiRise {
+  from { opacity: 0; transform: translateY(26px) scale(0.985); filter: blur(8px); }
+  60% { filter: blur(0); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* Cards lift gently on hover. */
+.ui-main .glass:not(.rv *) {
+  /* Hover lift uses `translate` so it never fights framer-motion, which drives `transform`. */
+  transition: translate 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.8s ease, border-color 0.6s ease;
+}
+
+/* Self-contained cards lift on hover (not full-height panels, tables, popovers). */
+.ui-main .glass:not(.fixed):not(.absolute):not(.overflow-hidden):not([class*='min-h']):not([class*='flex-1']):not(.rv *):hover {
+  translate: 0 -4px;
+  box-shadow: 0 1px 0 rgb(var(--highlight) / 0.5) inset, 0 34px 70px -40px rgb(var(--shadow) / 0.8);
+  border-color: rgb(var(--accent-soft) / 0.9);
+}
+/* Their icon tile tilts with them. */
+.ui-main .glass [class*='w-10'][class*='h-10'][class*='rounded-xl']:not(.rv *) {
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ui-main .glass:hover [class*='w-10'][class*='h-10'][class*='rounded-xl']:not(.rv *) {
+  transform: rotate(-8deg) scale(1.08);
+}
+
+/* Table rows and list buttons fade their hover tint instead of snapping. */
+.ui-main :is(tbody tr, button, a):not(.rv *) {
+  transition-property: background-color, border-color, color, box-shadow, filter;
+  transition-duration: 0.45s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-main h1, .ui-main h1::after, .ui-page > * > * { animation: none !important; }
+  .ui-main .glass:hover { translate: none !important; }
+  .ui-main .glass:hover [class*='w-10'] { transform: none !important; }
+  .ui-main button.bg-accent::after { display: none; }
+}
+
+/* Section titles */
+.ui-main :is(h2, h3):not(.rv *) {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ui-main :is(h2, h3):is(.text-xl, .text-2xl, .text-3xl, .text-lg):not(.rv *) {
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* Big numbers (stat tiles) */
+.ui-main :is(p, span, div):is(.text-2xl, .text-3xl, .text-4xl):is(.font-bold, .font-extrabold, .font-black):not(.rv *) {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+/* Cards */
+.ui-main .glass:not(.rv *),
+.ui-main .glass-light:not(.rv *) {
+  border-color: rgb(var(--line));
+  background: rgb(var(--bg-800));
+  box-shadow: 0 1px 0 rgb(var(--highlight) / 0.5) inset, 0 20px 50px -42px rgb(var(--shadow) / 0.7);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.ui-main .glass:not(.rv *) { border-radius: 1.5rem; }
+.ui-main .glass-light:not(.rv *) { background: rgb(var(--bg-700)); border-radius: 1.1rem; }
+:root[data-theme='dark'] .ui-main .glass:not(.rv *) { background: rgb(var(--bg-700)); }
+:root[data-theme='dark'] .ui-main .glass-light:not(.rv *) { background: rgb(var(--bg-600)); }
+
+/* Buttons: pills, like the landing page. List rows (full-width / left-aligned) keep their shape. */
+.ui-main button:is([class*='rounded-lg'], [class*='rounded-xl'], [class*='rounded-md'], [class*='rounded-2xl']):not([class*='w-full']):not([class*='text-left']):not([class*='flex-col']):not(.rv *),
+.ui-main button[class*='bg-accent']:not([class*='text-left']):not(.rv *) {
+  border-radius: 999px;
+}
+.ui-main button:is(.bg-accent, [class*='bg-accent ']):not(.rv *),
+.ui-main button.bg-accent:not(.rv *) {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--btn-a), var(--btn-b));
+  color: var(--btn-ink);
+  font-weight: 600;
+  box-shadow: 0 8px 28px -12px rgb(var(--btn-glow) / 0.45);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s ease, filter 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Glossy shine that glides across primary buttons on hover. */
+.ui-main button.bg-accent:not(.rv *)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.ui-main button.bg-accent:hover:not(:disabled):not(.rv *)::after { transform: translateX(120%); }
+.ui-main button.bg-accent:hover:not(:disabled):not(.rv *) { filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 18px 40px -14px rgb(var(--btn-glow) / 0.55); }
+.ui-main button.bg-accent:active:not(:disabled):not(.rv *) { transform: scale(0.97); }
+.ui-main button.bg-accent :is(svg, span, p):not(.rv *) { color: var(--btn-ink); }
+
+/* Form fields */
+.ui-main :is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']), select, textarea):not(.rv *) {
+  border: 1px solid rgb(var(--line));
+  background-color: rgb(var(--bg-900) / 0.6);
+  color: rgb(var(--ink));
+  border-radius: 1rem;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+.ui-main :is(input, select):not([type='checkbox']):not([type='radio']):not(.rv *) { border-radius: 999px; }
+.ui-main :is(input, select, textarea):focus:not(.rv *) {
+  outline: none;
+  border-color: rgb(var(--accent));
+  box-shadow: 0 0 0 3px rgb(var(--accent-soft) / 0.3);
+}
+.ui-main :is(input, textarea)::placeholder { color: rgb(var(--tone-600)); }
+.ui-main :is(input[type='checkbox'], input[type='radio']) { accent-color: rgb(var(--accent)); }
+
+/* Tables */
+.ui-main th:not(.rv *) {
+  color: rgb(var(--tone-500));
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ui-main tbody tr:not(.rv *) { border-color: rgb(var(--line) / 0.8); }
+
+/* Small bordered status chips -> rounded tags (landing .sa-tag). */
+.ui-main span:is([class*='text-[9px]'], [class*='text-[10px]'], [class*='text-[11px]'])[class*='border']:not(.rv *) {
+  border-radius: 999px;
+}

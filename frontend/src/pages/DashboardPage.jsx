@@ -10,9 +10,10 @@ import {
 } from 'lucide-react'
 
 import api from '../utils/api'
+import { useTheme } from '../utils/theme'
 
-const STATUS_COLORS = { allowed: '#06d6a0', filtered: '#ffb703', blocked: '#ff4d6d' }
-const RISK_COLORS = { low: '#06d6a0', medium: '#ffb703', high: '#ff4d6d' }
+const STATUS_COLORS = { allowed: '#4f9a6a', filtered: '#c9922e', blocked: '#c4553f' }
+const RISK_COLORS = { low: '#4f9a6a', medium: '#c9922e', high: '#c4553f' }
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -178,6 +179,8 @@ function OverviewWidgets() {
 }
 
 export default function DashboardPage() {
+  const [theme] = useTheme()
+  const ACCENT = theme === 'dark' ? '#ef5539' : '#7fa95b'
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -323,23 +326,23 @@ export default function DashboardPage() {
         {activeTab === 'overview' && stats && (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={Activity} label="Total Queries" value={stats.total} color="#00e5ff" />
-              <StatCard icon={ShieldCheck} label="Allowed" value={stats.allowed} color="#06d6a0" />
-              <StatCard icon={ShieldAlert} label="Filtered" value={stats.filtered} color="#ffb703" />
-              <StatCard icon={Lock} label="Blocked" value={stats.blocked} color="#ff4d6d" />
+              <StatCard icon={Activity} label="Total Queries" value={stats.total} color={ACCENT} />
+              <StatCard icon={ShieldCheck} label="Allowed" value={stats.allowed} color="#4f9a6a" />
+              <StatCard icon={ShieldAlert} label="Filtered" value={stats.filtered} color="#c9922e" />
+              <StatCard icon={Lock} label="Blocked" value={stats.blocked} color="#c4553f" />
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={TrendingUp} label="High Risk Alerts" value={stats.high_risk_alerts} color="#ff4d6d" />
-              <StatCard icon={Database} label="Dataset Questions" value={stats.question_bank_total || 0} color="#60a5fa" />
-              <StatCard icon={MessageCircleQuestion} label="Open Review Queue" value={stats.unanswered_count || 0} color="#fb7185" />
-              <StatCard icon={ThumbsDown} label="Low Quality Responses" value={stats.low_quality_responses?.length || 0} color="#f97316" />
+              <StatCard icon={TrendingUp} label="High Risk Alerts" value={stats.high_risk_alerts} color="#c4553f" />
+              <StatCard icon={Database} label="Dataset Questions" value={stats.question_bank_total || 0} color="#5f86a8" />
+              <StatCard icon={MessageCircleQuestion} label="Open Review Queue" value={stats.unanswered_count || 0} color="#c46a78" />
+              <StatCard icon={ThumbsDown} label="Low Quality Responses" value={stats.low_quality_responses?.length || 0} color="#d07a3a" />
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <StatCard icon={AlertTriangle} label="Risky Requests" value={stats.risky_requests ?? 0} color="#ffb703" />
-              <StatCard icon={Clock} label="Open Governance Cases" value={stats.open_governance_cases ?? 0} color="#a78bfa" />
-              <StatCard icon={Ban} label="Active Restrictions" value={stats.active_restrictions ?? 0} color="#ff4d6d" />
+              <StatCard icon={AlertTriangle} label="Risky Requests" value={stats.risky_requests ?? 0} color="#c9922e" />
+              <StatCard icon={Clock} label="Open Governance Cases" value={stats.open_governance_cases ?? 0} color="#8a7bb8" />
+              <StatCard icon={Ban} label="Active Restrictions" value={stats.active_restrictions ?? 0} color="#c4553f" />
             </div>
 
             <OverviewWidgets />
@@ -352,15 +355,15 @@ export default function DashboardPage() {
                   <AreaChart data={stats.usage_over_time} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="usageGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00e5ff" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#00e5ff" stopOpacity={0} />
+                        <stop offset="5%" stopColor={ACCENT} stopOpacity={0.35} />
+                        <stop offset="95%" stopColor={ACCENT} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={d => format(new Date(d), 'MM/dd')} />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,138,110,0.18)" />
+                    <XAxis dataKey="date" tick={{ fill: '#8a8f7e', fontSize: 10 }} tickFormatter={d => format(new Date(d), 'MM/dd')} />
+                    <YAxis tick={{ fill: '#8a8f7e', fontSize: 11 }} allowDecimals={false} />
                     <Tooltip content={<ChartTooltip />} labelFormatter={d => format(new Date(d), 'MMM dd')} />
-                    <Area type="monotone" dataKey="count" name="Requests" stroke="#00e5ff" fill="url(#usageGradient)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="count" name="Requests" stroke={ACCENT} fill="url(#usageGradient)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : <p className="text-slate-600 text-xs text-center py-8">No AI usage recorded in the last 14 days</p>}
@@ -372,12 +375,12 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-slate-600 font-mono mb-4">Total vs blocked breakdown</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={userBarData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="username" tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,138,110,0.18)" />
+                    <XAxis dataKey="username" tick={{ fill: '#8a8f7e', fontSize: 11 }} />
+                    <YAxis tick={{ fill: '#8a8f7e', fontSize: 11 }} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Bar dataKey="total" fill="#00e5ff" radius={[4, 4, 0, 0]} name="Total" />
-                    <Bar dataKey="blocked" fill="#ff4d6d" radius={[4, 4, 0, 0]} name="Blocked" />
+                    <Bar dataKey="total" fill={ACCENT} radius={[4, 4, 0, 0]} name="Total" />
+                    <Bar dataKey="blocked" fill="#c4553f" radius={[4, 4, 0, 0]} name="Blocked" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -586,9 +589,9 @@ export default function DashboardPage() {
         {activeTab === 'security' && (
           <>
             <div className="grid grid-cols-3 gap-4">
-              <StatCard icon={AlertTriangle} label="High Severity" value={securityCounts.high} color="#ff4d6d" />
-              <StatCard icon={ShieldAlert} label="Medium Severity" value={securityCounts.medium} color="#ffb703" />
-              <StatCard icon={ShieldCheck} label="Low Severity" value={securityCounts.low} color="#06d6a0" />
+              <StatCard icon={AlertTriangle} label="High Severity" value={securityCounts.high} color="#c4553f" />
+              <StatCard icon={ShieldAlert} label="Medium Severity" value={securityCounts.medium} color="#c9922e" />
+              <StatCard icon={ShieldCheck} label="Low Severity" value={securityCounts.low} color="#4f9a6a" />
             </div>
 
             <div className="glass rounded-2xl border border-white/5 overflow-hidden">

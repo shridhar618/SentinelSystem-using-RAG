@@ -514,6 +514,8 @@ def get_work_board():
     actor = _current_user()
     if not actor:
         return jsonify({"error": "User not found"}), 404
+    if not _is_admin_or_hr(actor):
+        return jsonify({"error": "Manager access required"}), 403
 
     assignments = (
         _assignment_query(actor, include_drafts=True, root_only=True).all()
@@ -527,7 +529,7 @@ def get_work_board():
             _serialize_assignment(item, include_progress=True, board_view=True, include_children=True)
             for item in assignments
         ],
-        "columns": ["draft", "todo", "in_progress", "review", "blocked", "completed"],
+        "columns": ["todo", "in_progress", "blocked", "completed"],
         "count": len(assignments),
     }), 200
 

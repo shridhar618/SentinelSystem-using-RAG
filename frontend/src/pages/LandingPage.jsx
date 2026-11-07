@@ -1,7 +1,25 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useState } from 'react'
-import { Activity, ArrowRight, ArrowUpRight, Check, FileCheck2, LockKeyhole, Shield, Sparkles, UsersRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Activity, ArrowRight, Check, FileCheck2, LockKeyhole, Shield, ShieldCheck, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle'
+import { useHeroParallax } from '../utils/motion'
+import './landing.css'
+
+const NAV_LINKS = [
+  { id: 'platform', label: 'Platform' },
+  { id: 'features', label: 'Features' },
+  { id: 'how', label: 'How it works' },
+  { id: 'method', label: 'Method' },
+  { id: 'start', label: 'Get started' },
+]
+
+const HERO_LINES = [
+  ['Every AI', 'ink'],
+  ['answer,', 'ink'],
+  ['governed', 'green'],
+  ['& proven.', 'green'],
+]
 
 const CAPABILITIES = [
   [LockKeyhole, 'Role-aware access', 'Permissions follow the person, so sensitive requests stay within the right boundaries.'],
@@ -18,73 +36,184 @@ const STEPS = [
 ]
 
 const SLIDES = [
-  ['01', 'The request', 'Start with a question.', 'Every request enters a governed workspace with the user, role, and context attached.', 'INCOMING REQUEST', 'Can I share this customer data?', 'Awaiting evaluation', 'cyan'],
-  ['02', 'Access control', 'Check who is asking.', 'Role-aware permissions establish what the user can access before an answer is considered.', 'IDENTITY VERIFIED', 'Marketing analyst · customer-data access', 'Role verified', 'purple'],
-  ['03', 'Risk evaluation', 'Let policy shape the answer.', 'Approved sources and risk signals are evaluated together, with the reasoning kept visible.', 'POLICY EVALUATION', 'Customer data handling policy · §4.2', 'Low risk · policy matched', 'green'],
-  ['04', 'Decision trace', 'Answer and record.', 'The user gets a useful response while the decision, evidence, and risk outcome are recorded.', 'FINAL DECISION', 'Approved with handling guidance', 'Recorded · trace available', 'gold'],
+  ['01', 'The request', 'Start with a question.', 'Every request enters a governed workspace with the user, role, and context attached.', 'Incoming request', 'Can I share this customer data?', 'Awaiting evaluation'],
+  ['02', 'Access control', 'Check who is asking.', 'Role-aware permissions establish what the user can access before an answer is considered.', 'Identity verified', 'Marketing analyst · customer-data access', 'Role verified'],
+  ['03', 'Risk evaluation', 'Let policy shape the answer.', 'Approved sources and risk signals are evaluated together, with the reasoning kept visible.', 'Policy evaluation', 'Customer data handling policy · §4.2', 'Low risk · policy matched'],
+  ['04', 'Decision trace', 'Answer and record.', 'The user gets a useful response while the decision, evidence, and risk outcome are recorded.', 'Final decision', 'Approved with handling guidance', 'Recorded · trace available'],
 ]
 
 const AUDIT_EVENTS = [
-  ['09:42:18', 'Policy match completed', 'LOW RISK', 'low'],
-  ['09:42:19', 'Decision trace created', 'RECORDED', 'info'],
-  ['09:42:20', 'Response released to user', 'APPROVED', 'success'],
+  ['09:42:18', 'Policy match completed', 'Low risk'],
+  ['09:42:19', 'Decision trace created', 'Recorded'],
+  ['09:42:20', 'Response released to user', 'Approved'],
 ]
 
-function Reveal({ children, className = '', delay = 0 }) {
+const ease = [0.22, 1, 0.36, 1]
+
+function Reveal({ children, className = '', delay = 0, as = 'div' }) {
+  const M = motion[as]
   return (
-    <motion.div
+    <M
       className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 36, scale: 0.98, filter: 'blur(8px)' }}
+      whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
       viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 1.2, delay, ease }}
     >
       {children}
-    </motion.div>
+    </M>
   )
 }
 
-function WorkflowCarousel({ reduceMotion }) {
+function scrollToId(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function Nav() {
+  const navigate = useNavigate()
+  const [active, setActive] = useState('platform')
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) return undefined
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) setActive(e.target.id)
+    }, { rootMargin: '-45% 0px -50% 0px' })
+    NAV_LINKS.forEach((l) => {
+      const el = document.getElementById(l.id)
+      if (el) io.observe(el)
+    })
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <header className={`sa-nav ${scrolled ? 'is-scrolled' : ''}`}>
+      <button type="button" className="sa-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="SecureAI — back to top">
+        <span className="sa-brand__mark"><Shield size={22} strokeWidth={1.8} /></span>
+        <span className="sa-brand__name">SecureAI</span>
+      </button>
+      <ThemeToggle className="sa-theme" size={17} />
+      <nav className="sa-nav__links" aria-label="Sections">
+        <ul>
+          {NAV_LINKS.map((l) => (
+            <li key={l.id}>
+              <a href={`#${l.id}`} aria-current={active === l.id ? 'true' : undefined}
+                onClick={(e) => { e.preventDefault(); scrollToId(l.id) }}>
+                {l.label}
+              </a>
+            </li>
+          ))}
+          <li className="sa-nav__login">
+            <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login') }}>Log in</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+  )
+}
+
+function Hero() {
+  const navigate = useNavigate()
+  const reduce = useReducedMotion()
+  const ref = useRef(null)
+
+  useHeroParallax(ref)
+
+  return (
+    <section id="platform" ref={ref} className="sa-hero" aria-labelledby="hero-title">
+      <div className="sa-hero__art" aria-hidden="true">
+        <ShieldCheck strokeWidth={0.75} />
+      </div>
+      <div className="sa-hero__inner">
+        <div className="sa-hero__copy">
+          <motion.span className="sa-eyebrow" initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1.2, delay: 0.2, ease }}>
+            Enterprise AI governance
+          </motion.span>
+          <h1 id="hero-title" className="sa-hero__title">
+            {HERO_LINES.map(([line, tone], i) => (
+              <span className="sa-line" key={line}>
+                <motion.span
+                  className={`sa-line__inner ${tone === 'green' ? 'is-green' : ''}`}
+                  initial={reduce ? false : { y: '105%', opacity: 0, rotate: 2, filter: 'blur(10px)' }}
+                  animate={{ y: 0, opacity: 1, rotate: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: 1.4, delay: 0.3 + i * 0.18, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {line}
+                </motion.span>
+              </span>
+            ))}
+          </h1>
+          <motion.p className="sa-hero__lead" initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1.3, delay: 1, ease }}>
+            Give every team useful AI with policy controls, role-aware access, visible risk, and an audit trail built in — all in one focused workspace.
+          </motion.p>
+          <motion.div className="sa-hero__ctas" initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 1.3, delay: 1.2, ease }}>
+            <button type="button" className="sa-btn sa-btn--primary sa-btn--lg" onClick={() => navigate('/login')}>
+              Enter SecureAI <span className="sa-btn__badge"><ArrowRight size={16} /></span>
+            </button>
+            <button type="button" className="sa-btn sa-btn--ghost sa-btn--lg" onClick={() => scrollToId('features')}>
+              Explore the platform
+            </button>
+          </motion.div>
+        </div>
+      </div>
+      <div className="sa-hero__bar">
+        <span><Shield size={14} /> Governance layer active</span>
+        <span className="sa-hide-sm">Role-aware · policy-grounded · audited</span>
+        <button type="button" onClick={() => scrollToId('statement')}>Scroll to explore <span aria-hidden="true">↓</span></button>
+      </div>
+    </section>
+  )
+}
+
+function WorkflowCarousel() {
+  const reduce = useReducedMotion()
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
   const slide = SLIDES[active]
 
   useEffect(() => {
-    if (paused || reduceMotion) return undefined
-    const timer = window.setInterval(() => setActive(current => (current + 1) % SLIDES.length), 5200)
-    return () => window.clearInterval(timer)
-  }, [paused, reduceMotion])
+    if (paused || reduce) return undefined
+    const t = window.setInterval(() => setActive((c) => (c + 1) % SLIDES.length), 5200)
+    return () => window.clearInterval(t)
+  }, [paused, reduce])
 
   return (
-    <div className="landing-workflow-carousel" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <div className="landing-workflow-topline">
-        <span className="landing-eyebrow">Inside a governed request</span>
-        <span>{String(active + 1).padStart(2, '0')} / {String(SLIDES.length).padStart(2, '0')}</span>
+    <div className="sa-panel sa-carousel" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div className="sa-carousel__top">
+        <span className="sa-eyebrow">Inside a governed request</span>
+        <span className="sa-mono">{String(active + 1).padStart(2, '0')} / {String(SLIDES.length).padStart(2, '0')}</span>
       </div>
-      <div className="landing-workflow-stage">
+      <div className="sa-carousel__stage">
         <AnimatePresence mode="wait">
-          <motion.div key={slide[0]} className={`landing-workflow-slide landing-workflow-slide-${slide[7]}`} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.35 }}>
-            <div className="landing-workflow-copy">
-              <span className="landing-workflow-step">{slide[0]}</span>
-              <p className="landing-eyebrow">{slide[1]}</p>
+          <motion.div key={slide[0]} className="sa-slide" initial={{ opacity: 0, x: 24, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -24, filter: 'blur(6px)' }} transition={{ duration: 0.8, ease }}>
+            <div className="sa-slide__copy">
+              <span className="sa-mono sa-slide__num">{slide[0]} · {slide[1]}</span>
               <h3>{slide[2]}</h3>
               <p>{slide[3]}</p>
             </div>
-            <div className="landing-workflow-signal">
-              <span>{slide[4]}</span>
+            <div className="sa-signal">
+              <span className="sa-mono">{slide[4]}</span>
               <strong>{slide[5]}</strong>
-              <b>{slide[6]}</b>
-              <i />
+              <b className="sa-tag">{slide[6]}</b>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
-      <div className="landing-workflow-controls">
-        <button type="button" onClick={() => setActive(current => (current - 1 + SLIDES.length) % SLIDES.length)} aria-label="Previous workflow step">←</button>
-        <div className="landing-workflow-dots">
-          {SLIDES.map((item, index) => <button type="button" key={item[0]} className={index === active ? 'is-active' : ''} onClick={() => setActive(index)} aria-label={`Show workflow step ${item[0]}`} />)}
+      <div className="sa-carousel__controls">
+        <button type="button" onClick={() => setActive((c) => (c - 1 + SLIDES.length) % SLIDES.length)} aria-label="Previous step">←</button>
+        <div className="sa-dots">
+          {SLIDES.map((s, i) => (
+            <button type="button" key={s[0]} className={i === active ? 'is-active' : ''} onClick={() => setActive(i)} aria-label={`Show step ${s[0]}`} />
+          ))}
         </div>
-        <button type="button" onClick={() => setActive(current => (current + 1) % SLIDES.length)} aria-label="Next workflow step">→</button>
+        <button type="button" onClick={() => setActive((c) => (c + 1) % SLIDES.length)} aria-label="Next step">→</button>
       </div>
     </div>
   )
@@ -92,68 +221,121 @@ function WorkflowCarousel({ reduceMotion }) {
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const reduceMotion = useReducedMotion()
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-  }, [])
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [])
 
   return (
-    <div className="landing-page">
-      <motion.header
-        className="landing-header"
-        initial={reduceMotion ? false : { opacity: 0, y: -18 }}
-        animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <button className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span className="landing-mark"><Shield size={17} /></span>SecureAI</button>
-        <nav><a href="#method">Method</a><button onClick={() => navigate('/login')}>Sign in <ArrowUpRight size={15} /></button></nav>
-      </motion.header>
-
+    <div className="sa">
+      <Nav />
       <main>
-        <section className="landing-hero">
-          <motion.div className="landing-orbit landing-orbit-one" animate={reduceMotion ? {} : { rotate: [-25, -20, -25], opacity: [0.45, 0.8, 0.45] }} transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }} />
-          <motion.div className="landing-orbit landing-orbit-two" animate={reduceMotion ? {} : { rotate: [35, 27, 35], opacity: [0.25, 0.55, 0.25] }} transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }} />
-          <motion.div className="landing-core" animate={reduceMotion ? {} : { y: [0, -18, 0], rotate: [-3, 10, -3], scale: [1, 1.04, 1] }} transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}><Sparkles size={28} /></motion.div>
-          <div className="landing-hero-copy">
-            <motion.div
-              className="landing-hero-content"
-            >
-              <p className="landing-eyebrow">Enterprise AI governance platform</p>
-              <h1>Intelligence,<br /><em>held accountable.</em></h1>
-              <div className="landing-intro"><p>Give every team useful AI with policy controls, role-aware access, visible risk, and an audit trail built in.</p><div className="landing-actions"><button className="landing-cta" onClick={() => navigate('/login')}>Enter SecureAI <ArrowRight size={16} /></button><a className="landing-secondary-cta" href="#overview">See how it works <ArrowRight size={15} /></a></div></div>
-            </motion.div>
-            <motion.div className="landing-hero-proof">
-              <div className="landing-proof-header"><span className="landing-status-dot" /> Governance layer active <span>LIVE</span></div>
-              <div className="landing-proof-query"><span className="landing-proof-label">REQUEST EVALUATION</span><strong>Can I share this customer data?</strong></div>
-              <div className="landing-proof-checks">{['Role verified', 'Policy matched', 'Risk recorded'].map(check => <span key={check}><Check size={13} /> {check}</span>)}</div>
-              <div className="landing-proof-meter"><span /></div>
-              <div className="landing-proof-footer"><span>Decision trace available</span><span className="landing-proof-score">LOW RISK</span></div>
-            </motion.div>
+        <Hero />
+
+        <section id="statement" className="sa-section sa-statement">
+          <div className="sa-shell">
+            <Reveal><span className="sa-eyebrow">The promise</span></Reveal>
+            <Reveal as="h2" className="sa-statement__text" delay={0.08}>
+              Responsible intelligence should feel like <span className="is-green">craftsmanship</span> — quiet, considered, and made for the people who depend on it.
+            </Reveal>
           </div>
-          <motion.span className="landing-scroll" animate={reduceMotion ? {} : { y: [0, 7, 0], opacity: [0.5, 1, 0.5] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>Scroll to explore ↓</motion.span>
         </section>
 
-        <div className="landing-marquee"><div>Policy-grounded answers <b>·</b> Role-aware access <b>·</b> Every decision accountable <b>·</b> Human oversight <b>·</b> Policy-grounded answers <b>·</b> Role-aware access</div></div>
-        <Reveal className="landing-manifesto"><p className="landing-eyebrow">The promise</p><h2>Responsible intelligence should feel like <em>craftsmanship</em> — quiet, considered, and made for the people who depend on it.</h2></Reveal>
+        <div className="sa-band" aria-hidden="true">
+          <div className="sa-band__track">
+            {Array.from({ length: 2 }).map((_, k) => (
+              <span key={k}>Policy-grounded answers <b>◇</b> Role-aware access <b>◇</b> Every decision accountable <b>◇</b> Human oversight <b>◇</b> Audit trail built in <b>◇</b> </span>
+            ))}
+          </div>
+        </div>
 
-        <section id="overview" className="landing-overview">
-          <Reveal className="landing-section-title"><span className="landing-eyebrow">One calm layer of control</span><i /></Reveal>
-          <Reveal className="landing-overview-copy"><h2>AI that works <em>with</em> your organization.</h2><p>SecureAI brings access control, policy, risk, and audit into one workspace. Employees get useful answers; administrators get the context to make responsible decisions.</p></Reveal>
-          <div className="landing-capabilities">{CAPABILITIES.map(([Icon, title, text], index) => <Reveal key={title} delay={index * 0.08}><motion.article whileHover={reduceMotion ? {} : { y: -7, scale: 1.015 }} transition={{ type: 'spring', stiffness: 280, damping: 20 }}><span className="landing-capability-icon"><Icon size={18} /></span><h3>{title}</h3><p>{text}</p></motion.article></Reveal>)}</div>
-          <Reveal className="landing-audit-preview"><div className="landing-audit-heading"><span><span className="landing-status-dot" /> Live decision trace</span><span>SECUREAI / AUDIT</span></div><div className="landing-audit-events">{AUDIT_EVENTS.map(([time, event, status, tone]) => <div className="landing-audit-event" key={event}><time>{time}</time><span className="landing-audit-line" /><strong>{event}</strong><b data-tone={tone}>{status}</b></div>)}</div></Reveal>
-          <Reveal><WorkflowCarousel reduceMotion={reduceMotion} /></Reveal>
+        <section id="features" className="sa-section">
+          <div className="sa-shell">
+            <div className="sa-head sa-head--split">
+              <Reveal>
+                <span className="sa-eyebrow">One calm layer of control</span>
+                <h2 className="sa-h2">AI that works <span className="is-green">with</span> your organization.</h2>
+              </Reveal>
+              <Reveal delay={0.1}>
+                <p className="sa-lead">SecureAI brings access control, policy, risk, and audit into one workspace. Employees get useful answers; administrators get the context to make responsible decisions.</p>
+              </Reveal>
+            </div>
+            <div className="sa-features">
+              {CAPABILITIES.map(([Icon, title, text], i) => (
+                <Reveal key={title} delay={i * 0.08} as="article" className="sa-feature">
+                  <span className="sa-feature__icon"><Icon size={18} /></span>
+                  <span className="sa-mono sa-feature__num">0{i + 1}</span>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section id="method" className="landing-method">
-          <Reveal className="landing-section-title"><span className="landing-eyebrow">The method</span><i /></Reveal>
-          <div className="landing-cards">{STEPS.map(([number, title, text], index) => <Reveal key={number} delay={index * 0.08}><motion.article whileHover={reduceMotion ? {} : { y: -8, scale: 1.015 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div></motion.article></Reveal>)}</div>
-          <Reveal className="landing-flow"><span className="landing-eyebrow">Every request follows a clear path</span><div>{STEPS.map(([number, title], index) => <span className="landing-flow-step" key={number}><b>{title}</b>{index < STEPS.length - 1 && <i>→</i>}</span>)}</div></Reveal>
+        <section id="how" className="sa-section sa-section--tint">
+          <div className="sa-shell">
+            <div className="sa-head">
+              <Reveal>
+                <span className="sa-eyebrow">How it works</span>
+                <h2 className="sa-h2">Every request leaves a <span className="is-green">trace.</span></h2>
+              </Reveal>
+            </div>
+            <Reveal className="sa-panel sa-audit">
+              <div className="sa-audit__head">
+                <span><i className="sa-dot" /> Live decision trace</span>
+                <span className="sa-mono">SecureAI / audit</span>
+              </div>
+              {AUDIT_EVENTS.map(([time, event, status]) => (
+                <div className="sa-audit__row" key={event}>
+                  <time className="sa-mono">{time}</time>
+                  <span className="sa-audit__node" />
+                  <strong>{event}</strong>
+                  <b className="sa-tag"><Check size={11} /> {status}</b>
+                </div>
+              ))}
+            </Reveal>
+            <Reveal delay={0.08}><WorkflowCarousel /></Reveal>
+          </div>
         </section>
 
-        <Reveal className="landing-final"><span className="landing-mark"><Shield size={21} /></span><h2>Make AI<br /><em>answerable.</em></h2><p>Start with a governed workspace built around your organization’s policies and people.</p><button className="landing-cta" onClick={() => navigate('/login')}>Get started <ArrowRight size={16} /></button></Reveal>
+        <section id="method" className="sa-section">
+          <div className="sa-shell">
+            <div className="sa-head">
+              <Reveal>
+                <span className="sa-eyebrow">The method</span>
+                <h2 className="sa-h2">Four steps. <span className="is-green">No guesswork.</span></h2>
+              </Reveal>
+            </div>
+            <ol className="sa-steps">
+              {STEPS.map(([n, title, text], i) => (
+                <Reveal as="li" key={n} delay={i * 0.08} className="sa-step">
+                  <span className="sa-step__num">{n}</span>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </Reveal>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="start" className="sa-section sa-final">
+          <div className="sa-shell">
+            <Reveal>
+              <span className="sa-eyebrow">Get started</span>
+              <h2 className="sa-final__title">Make AI<br /><span className="is-green">answerable.</span></h2>
+              <p className="sa-lead">Start with a governed workspace built around your organization’s policies and people.</p>
+              <div className="sa-hero__ctas">
+                <button type="button" className="sa-btn sa-btn--primary sa-btn--lg" onClick={() => navigate('/login')}>
+                  Get started <span className="sa-btn__badge"><ArrowRight size={16} /></span>
+                </button>
+              </div>
+            </Reveal>
+          </div>
+        </section>
       </main>
-      <footer className="landing-footer"><strong>SecureAI</strong><span>AI governance for people who care about the details.</span></footer>
+      <footer className="sa-footer">
+        <span className="sa-brand"><span className="sa-brand__mark"><Shield size={18} strokeWidth={1.8} /></span><strong>SecureAI</strong></span>
+        <span>AI governance for people who care about the details.</span>
+      </footer>
     </div>
   )
 }

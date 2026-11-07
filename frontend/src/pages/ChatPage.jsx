@@ -18,9 +18,9 @@ const STATUS_CONFIG = {
 }
 
 const RISK_CONFIG = {
-  low: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#06d6a0' },
-  medium: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#ffb703' },
-  high: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#ff4d6d' },
+  low: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#4f9a6a' },
+  medium: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#c9922e' },
+  high: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#c4553f' },
 }
 
 function TypingIndicator() {

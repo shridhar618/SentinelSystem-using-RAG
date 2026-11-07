@@ -21,7 +21,7 @@ import MyWorkPage from './pages/MyWorkPage'
 import WorkBoardPage from './pages/WorkBoardPage'
 import WorkEscalationsPage from './pages/WorkEscalationsPage'
 import AdminCreateUserPage from './pages/AdminCreateUserPage'
-import CinematicLanding from './pages/CinematicLanding'
+import BlockchainExplorer from './modules/explorer'
 import { isManagerRole } from './utils/roles'
 
 function ProtectedRoute({ children, adminOnly = false, managerOnly = false }) {
@@ -42,7 +42,18 @@ function ProtectedRoute({ children, adminOnly = false, managerOnly = false }) {
 }
 
 function AppRoutes() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  // Wait for the stored session to resolve; otherwise a reload on any page
+  // briefly sees no user and redirects to /landing -> /welcome.
+  if (loading) return (
+    <div className="flex h-full items-center justify-center bg-bg-900">
+      <div className="flex gap-2">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="typing-dot" style={{ animationDelay: `${i * 0.2}s` }} />
+        ))}
+      </div>
+    </div>
+  )
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/welcome" replace /> : <LoginPage />} />
@@ -59,12 +70,13 @@ function AppRoutes() {
           <FaceUnlockPage />
         </ProtectedRoute>
       } />
+      <Route path="/face-attendance" element={
+        <ProtectedRoute>
+          <FaceAttendancePage />
+        </ProtectedRoute>
+      } />
 
-<<<<<<< HEAD
-      <Route path="/" element={user ? <Layout /> : <CinematicLanding />}>
-=======
       <Route path="/" element={user ? <Layout /> : <Navigate to="/landing" replace />}>
->>>>>>> b15d2e4 (completed project)
         <Route index element={<Navigate to="/welcome" replace />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
@@ -124,6 +136,12 @@ function AppRoutes() {
         <Route path="governance-cases" element={
           <ProtectedRoute adminOnly>
             <GovernanceCasesPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="blockchain-explorer" element={
+          <ProtectedRoute adminOnly>
+            <BlockchainExplorer />
           </ProtectedRoute>
         } />
 

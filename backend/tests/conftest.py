@@ -11,16 +11,12 @@ from app.models.user import User
 def app(tmp_path, monkeypatch):
     db_path = tmp_path / "test_work_management.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("SECRET_KEY", "test-secret")
-    monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret")
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-at-least-32-characters")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret-key-at-least-32-characters")
     monkeypatch.setenv("AI_PROVIDER", "mock")
-    # Explicit test-only face backend (see app/services/face_attendance.py):
-    # tests the attendance plumbing without needing dlib or a real face photo.
     monkeypatch.setenv("FACE_BACKEND", "test")
     monkeypatch.setenv("DEBUG", "0")
 
-    # The login rate limiter (Phase 21) keeps module-level state; without a
-    # reset, failed-login tests would leave accounts locked for later tests.
     from app.services import rate_limit
     rate_limit._attempts.clear()
 
