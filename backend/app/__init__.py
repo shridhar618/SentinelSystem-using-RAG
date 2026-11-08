@@ -77,6 +77,20 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
 
+    # Interactive Ghost Mode: "Suspend User" sets users.is_active = False.
+    # Rejecting the JWT of a suspended account here makes the suspension
+    # take effect immediately on every @jwt_required route (not just at the
+    # next login), without changing behaviour for any active account.
+    @jwt.token_in_blocklist_loader
+    def _reject_suspended_user_tokens(_jwt_header, jwt_payload):
+        from app.models.user import User
+
+        try:
+            user = db.session.get(User, int(jwt_payload.get("sub")))
+        except (TypeError, ValueError):
+            return False
+        return bool(user is not None and user.is_active is False)
+
     # Phase 21: "*" combined with supports_credentials=True is actually an
     # invalid combination per the CORS spec (browsers reject wildcard origin
     # + credentials together), and was broader than needed regardless --
@@ -171,12 +185,28 @@ def create_app():
 
     # Socket events
     from app.routes import socket_events  # noqa
+    socket_events.register_socket_handlers(socketio)
     import_module("app.models")
 
     # ── Socket.IO room management ─────────────────────────────
     @socketio.on('join_admin_room')
     def handle_join_admin(data=None):
+        # SECURITY (Interactive Ghost Mode upgrade): this previously let any
+        # socket client join admin_room unauthenticated and receive every
+        # Ghost Mode event. admin_room now carries real suspect messages and
+        # threat alerts, so membership requires a verified admin JWT -- either
+        # the one presented at connect time or one supplied with this event.
+        from flask import request as _request
+        from flask_socketio import emit as _emit
+        from app.routes.socket_events import resolve_socket_user
+
+        user = resolve_socket_user(_request.sid, (data or {}).get('token'))
+        role = ((user.role_ref.name if user and user.role_ref else None) or (user.role if user else '') or '').lower()
+        if not user or role != 'admin' or user.is_active is False:
+            _emit('admin_room_denied', {'error': 'Administrator authentication required'})
+            return
         join_room('admin_room')
+        _emit('admin_room_joined', {'user': user.username})
 
     @socketio.on('join_user_room')
     def handle_join_user(data=None):
@@ -200,6 +230,7 @@ def create_app():
         _ensure_work_assignment_columns()
         _ensure_user_schema()
         _ensure_audit_log_columns()
+        _ensure_notification_columns()
         _seed_roles()
         _seed_demo_users()
         _sync_users_to_roles()
@@ -207,6 +238,7 @@ def create_app():
         _seed_permissions()
         _seed_role_permissions()
         _seed_risk_configuration()
+        _seed_investigation_questions()
         _seal_audit_chain()
 
     # Phase 21/23: this is a JSON API. Without these, an unhandled exception
@@ -464,9 +496,43 @@ def _seed_risk_configuration():
         ("weight_data_exfiltration", "weight", 1.0, "Weight: data exfiltration signals"),
         ("weight_sensitive_pii", "weight", 0.7, "Weight: sensitive PII disclosure requests"),
         ("weight_insider_threat", "weight", 1.0, "Weight: insider threat indicators"),
+        # Interactive Ghost Mode: chatbot messages scoring at/above this
+        # (0-100) raise a threat alert and notify administrators.
+        ("ghost_threat_alert_threshold", "threshold", 50.0, "Ghost Mode: threat score (0-100) that raises an admin threat alert"),
     ]
     existing = {config.key for config in RiskConfiguration.query.all()}
     for key, category, value, description in defaults:
         if key not in existing:
             db.session.add(RiskConfiguration(key=key, category=category, value=value, description=description))
+    db.session.commit()
+
+
+def _ensure_notification_columns():
+    """Interactive Ghost Mode: notifications can deep-link to a threat alert."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table("notifications"):
+        return
+    columns = {column["name"] for column in inspector.get_columns("notifications")}
+    if "related_alert_id" not in columns:
+        db.session.execute(text("ALTER TABLE notifications ADD COLUMN related_alert_id INTEGER REFERENCES ghost_threat_alerts(id)"))
+        db.session.commit()
+
+
+DEFAULT_INVESTIGATION_QUESTIONS = [
+    "What are you trying to access?",
+    "Can you explain the purpose of this request?",
+    "Are you investigating a particular security mechanism?",
+    "What kind of access are you attempting to obtain?",
+    "Is this related to your own account, or someone else's?",
+    "Has anyone authorised you to do this? Who asked you to look into it?",
+]
+
+
+def _seed_investigation_questions():
+    from app.models.ghost_investigation import InvestigationQuestion
+
+    if InvestigationQuestion.query.filter_by(is_default=True).count():
+        return
+    for question in DEFAULT_INVESTIGATION_QUESTIONS:
+        db.session.add(InvestigationQuestion(text=question, is_default=True))
     db.session.commit()

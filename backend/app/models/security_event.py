@@ -11,6 +11,7 @@ EVENT_TYPES = [
     "unusual_access",
     "attack_simulation",
     "ghost_mode_intervention",
+    "ghost_threat_alert",
 ]
 
 

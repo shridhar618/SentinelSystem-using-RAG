@@ -35,7 +35,7 @@ def create_notification(user, type_, message, related_case_id=None, commit=True)
     return notification
 
 
-def notify_admins(type_, message, related_case_id=None, commit=True):
+def notify_admins(type_, message, related_case_id=None, commit=True, related_alert_id=None):
     """Fans a notification out to every admin. Returns the created rows.
 
     Emission is deferred until after the commit so the payload carries a
@@ -50,6 +50,7 @@ def notify_admins(type_, message, related_case_id=None, commit=True):
             type=type_,
             message=message,
             related_case_id=related_case_id,
+            related_alert_id=related_alert_id,
         ))
     for notification in created:
         db.session.add(notification)
