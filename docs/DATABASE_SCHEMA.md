@@ -52,6 +52,9 @@ An auditable administrator action taken on a GovernanceCase.
 | resource | String(255) |  |
 | event_metadata | Text |  |
 | timestamp | DateTime | default |
+| chain_seq | Integer | indexed |
+| chain_prev_hash | String(64) |  |
+| chain_hash | String(64) | indexed |
 
 ## `face_profiles` (FaceProfile)
 
@@ -72,6 +75,84 @@ An auditable administrator action taken on a GovernanceCase.
 | id | Integer | PK |
 | user_id | Integer | not null, FK -> users.id |
 | question_id | String(120) | not null |
+| created_at | DateTime | default |
+
+## `ghost_threat_alerts` (ThreatAlert)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer | PK |
+| user_id | Integer | not null, indexed, FK -> users.id |
+| message | Text | not null |
+| threat_score | Integer | not null, default |
+| threat_level | String(10) | not null, default |
+| category | String(40) |  |
+| categories_json | Text |  |
+| signals_json | Text |  |
+| source | String(20) | not null, default |
+| status | String(20) | not null, indexed, default |
+| audit_log_id | Integer | FK -> audit_logs.id |
+| investigation_id | Integer | indexed, FK -> ghost_investigations.id |
+| reviewed_by_id | Integer | FK -> users.id |
+| created_at | DateTime | indexed, default |
+
+## `ghost_investigations` (GhostInvestigation)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer | PK |
+| target_user_id | Integer | not null, indexed, FK -> users.id |
+| activated_by_id | Integer | not null, FK -> users.id |
+| controlling_admin_id | Integer | FK -> users.id |
+| ended_by_id | Integer | FK -> users.id |
+| status | String(20) | not null, indexed, default |
+| interaction_mode | String(20) | not null, default |
+| threat_score | Integer | not null, default |
+| threat_level | String(10) | not null, default |
+| threat_category | String(40) |  |
+| legacy_session_id | String(120) |  |
+| user_suspended | Boolean | not null, default |
+| end_reason | Text |  |
+| started_at | DateTime | indexed, default |
+| last_activity_at | DateTime | default |
+| admin_last_active_at | DateTime |  |
+| expires_at | DateTime |  |
+| ended_at | DateTime |  |
+
+## `ghost_investigation_messages` (GhostMessage)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer | PK |
+| investigation_id | Integer | not null, indexed, FK -> ghost_investigations.id |
+| sender_type | String(20) | not null |
+| sender_user_id | Integer | FK -> users.id |
+| content | Text | not null |
+| threat_score | Integer |  |
+| threat_level | String(10) |  |
+| categories_json | Text |  |
+| created_at | DateTime | indexed, default |
+
+## `ghost_investigation_events` (GhostInvestigationEvent)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer | PK |
+| investigation_id | Integer | not null, indexed, FK -> ghost_investigations.id |
+| event_type | String(40) | not null |
+| actor_id | Integer | FK -> users.id |
+| description | Text |  |
+| details_json | Text |  |
+| created_at | DateTime | indexed, default |
+
+## `ghost_investigation_questions` (InvestigationQuestion)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | Integer | PK |
+| text | String(500) | not null |
+| is_default | Boolean | not null, default |
+| created_by_id | Integer | FK -> users.id |
 | created_at | DateTime | default |
 
 ## `governance_cases` (GovernanceCase)
@@ -108,6 +189,7 @@ An auditable administrator action taken on a GovernanceCase.
 | type | String(40) | not null |
 | message | Text | not null |
 | related_case_id | Integer | FK -> governance_cases.id |
+| related_alert_id | Integer | FK -> ghost_threat_alerts.id |
 | is_read | Boolean | not null, default |
 | created_at | DateTime | indexed, default |
 
