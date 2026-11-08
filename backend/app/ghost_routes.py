@@ -152,11 +152,17 @@ def ghost_chat():
 
     risk_score = compute_risk(message)
     session["risk_score"] = max(session["risk_score"], risk_score)
+    # Interactive Ghost Mode upgrade: contextual threat classification is
+    # attached alongside the original keyword risk score (additive only).
+    from app.services.threat_detection import analyze_message
+
+    threat = analyze_message(message).to_dict()
 
     user_entry = {
         "role": "user",
         "text": message,
         "risk_score": risk_score,
+        "threat": threat,
         "timestamp": datetime.utcnow().isoformat(),
     }
     session["history"].append(user_entry)
@@ -182,6 +188,7 @@ def ghost_chat():
                 "user": user,
                 "message": message,
                 "risk_score": risk_score,
+                "threat": threat,
                 "timestamp": datetime.utcnow().isoformat(),
             },
             room="admin_room",
@@ -224,6 +231,7 @@ def ghost_chat():
                 "response": response,
                 "mode": "auto",
                 "risk_score": risk_score,
+                "threat": threat,
             }
         )
 
@@ -233,6 +241,7 @@ def ghost_chat():
             "response": None,
             "mode": "manual",
             "risk_score": risk_score,
+            "threat": threat,
         }
     )
 
@@ -421,3 +430,363 @@ def get_ghost_sessions():
             if session["user"] == current_user.username
         ]
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Interactive Ghost Mode (upgrade)
+#
+# Everything above is the original in-memory honeypot demo and is preserved
+# unchanged. The endpoints below add database-backed threat alerts and
+# interactive investigations of *real* suspicious users (AI Persona / Admin
+# Manual Control). All of them are admin-only and enforced server-side;
+# destructive actions additionally require an explicit `confirm: true`.
+# ═════════════════════════════════════════════════════════════════════════════
+
+from flask import Response  # noqa: E402
+
+from app.models.ghost_investigation import (  # noqa: E402
+    OPEN_INVESTIGATION_STATUSES,
+    GhostInvestigation,
+    InvestigationQuestion,
+    ThreatAlert,
+)
+from app.services import ghost_investigation as gi  # noqa: E402
+
+
+def _error(exc: "gi.InvestigationError"):
+    payload = {"error": exc.message}
+    if exc.code:
+        payload["code"] = exc.code
+    payload.update(exc.extra)
+    return jsonify(payload), exc.status
+
+
+def _require_confirmation(data: dict, action: str):
+    if data.get("confirm") is not True:
+        return jsonify({
+            "error": f"Confirmation required to {action}. Resend with \"confirm\": true.",
+            "code": "confirmation_required",
+        }), 428
+    return None
+
+
+def _admin_and_investigation(investigation_id):
+    admin, error = _require_admin()
+    if error:
+        return None, None, error
+    try:
+        investigation = gi.get_investigation_or_404(investigation_id)
+    except gi.InvestigationError as exc:
+        return None, None, _error(exc)
+    return admin, investigation, None
+
+
+# ── threat alerts ───────────────────────────────────────────────────────────
+
+@ghost_bp.route("/ghost/alerts", methods=["GET"])
+@jwt_required()
+def list_threat_alerts():
+    _admin, error = _require_admin()
+    if error:
+        return error
+    query = ThreatAlert.query
+    status = (request.args.get("status") or "").strip()
+    if status:
+        query = query.filter(ThreatAlert.status == status)
+    limit = min(max(int(request.args.get("limit", 50) or 50), 1), 200)
+    alerts = query.order_by(ThreatAlert.created_at.desc(), ThreatAlert.id.desc()).limit(limit).all()
+    from app.services.threat_detection import load_alert_threshold
+
+    return jsonify({"alerts": [a.to_dict() for a in alerts], "threshold": load_alert_threshold()})
+
+
+@ghost_bp.route("/ghost/alerts/<int:alert_id>", methods=["GET"])
+@jwt_required()
+def get_threat_alert(alert_id):
+    _admin, error = _require_admin()
+    if error:
+        return error
+    alert = db.session.get(ThreatAlert, alert_id)
+    if not alert:
+        return jsonify({"error": "Alert not found"}), 404
+    return jsonify({"alert": gi.alert_with_context(alert)})
+
+
+@ghost_bp.route("/ghost/alerts/<int:alert_id>/dismiss", methods=["POST"])
+@jwt_required()
+def dismiss_threat_alert(alert_id):
+    admin, error = _require_admin()
+    if error:
+        return error
+    alert = db.session.get(ThreatAlert, alert_id)
+    if not alert:
+        return jsonify({"error": "Alert not found"}), 404
+    data = request.get_json() or {}
+    gi.dismiss_alert(alert, admin, (data.get("note") or "")[:500])
+    return jsonify({"alert": alert.to_dict()})
+
+
+# ── investigations ──────────────────────────────────────────────────────────
+
+@ghost_bp.route("/ghost/investigations", methods=["GET"])
+@jwt_required()
+def list_investigations():
+    _admin, error = _require_admin()
+    if error:
+        return error
+    query = GhostInvestigation.query
+    status = (request.args.get("status") or "").strip()
+    if status == "open":
+        query = query.filter(GhostInvestigation.status.in_(OPEN_INVESTIGATION_STATUSES))
+    elif status:
+        query = query.filter(GhostInvestigation.status == status)
+    investigations = query.order_by(GhostInvestigation.started_at.desc(), GhostInvestigation.id.desc()).limit(100).all()
+    for investigation in investigations:
+        gi.expire_if_stale(investigation)
+    return jsonify({"investigations": [i.to_dict() for i in investigations]})
+
+
+@ghost_bp.route("/ghost/investigations", methods=["POST"])
+@jwt_required()
+def activate_investigation():
+    admin, error = _require_admin()
+    if error:
+        return error
+    data = request.get_json() or {}
+    confirmation = _require_confirmation(data, "activate Interactive Ghost Mode")
+    if confirmation:
+        return confirmation
+
+    alert = None
+    if data.get("alert_id"):
+        alert = db.session.get(ThreatAlert, int(data["alert_id"]))
+        if not alert:
+            return jsonify({"error": "Alert not found"}), 404
+
+    target = None
+    if data.get("user_id"):
+        target = db.session.get(User, int(data["user_id"]))
+    elif (data.get("username") or "").strip():
+        target = User.query.filter_by(username=data["username"].strip()).first()
+    elif alert:
+        target = alert.user
+    if not target:
+        return jsonify({"error": "Target user not found"}), 404
+    if alert and alert.user_id != target.id:
+        return jsonify({"error": "Alert does not belong to the target user"}), 400
+
+    legacy_session_id = (data.get("legacy_session_id") or "").strip() or None
+    if legacy_session_id and legacy_session_id not in ghost_sessions:
+        legacy_session_id = None
+    if not legacy_session_id and f"ghost_{target.username}" in ghost_sessions:
+        legacy_session_id = f"ghost_{target.username}"
+    try:
+        investigation = gi.activate_investigation(admin, target, alert, legacy_session_id, data.get("mode", "ai_persona"))
+    except gi.InvestigationError as exc:
+        return _error(exc)
+
+    # Activated from an existing honeypot session: carry its risk forward.
+    legacy_risk = int(ghost_sessions.get(legacy_session_id, {}).get("risk_score", 0)) if legacy_session_id else 0
+    if legacy_risk > investigation.threat_score:
+        from app.services.threat_detection import score_to_level
+
+        investigation.threat_score = legacy_risk
+        investigation.threat_level = score_to_level(legacy_risk)
+        db.session.commit()
+    return jsonify({"investigation": investigation.to_dict(include_messages=True, include_events=True)}), 201
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>", methods=["GET"])
+@jwt_required()
+def get_investigation(investigation_id):
+    _admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    return jsonify({"investigation": investigation.to_dict(include_messages=True, include_events=True)})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/mode", methods=["POST"])
+@jwt_required()
+def switch_investigation_mode(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    data = request.get_json() or {}
+    try:
+        gi.switch_mode(investigation, admin, (data.get("mode") or "").strip(), force=data.get("force") is True)
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"investigation": investigation.to_dict(include_messages=True, include_events=True)})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/messages", methods=["POST"])
+@jwt_required()
+def send_investigation_message(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    data = request.get_json() or {}
+    question_id = data.get("question_id")
+    text = data.get("message") or ""
+    if question_id and not text.strip():
+        question = db.session.get(InvestigationQuestion, int(question_id))
+        if not question:
+            return jsonify({"error": "Question not found"}), 404
+        text = question.text
+    try:
+        message = gi.send_admin_message(investigation, admin, text, question_id=question_id)
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"message": message.to_dict()}), 201
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/pause", methods=["POST"])
+@jwt_required()
+def pause_investigation(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    try:
+        gi.pause(investigation, admin)
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"investigation": investigation.to_dict()})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/resume", methods=["POST"])
+@jwt_required()
+def resume_investigation(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    try:
+        gi.resume(investigation, admin)
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"investigation": investigation.to_dict()})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/terminate", methods=["POST"])
+@jwt_required()
+def terminate_investigation(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    data = request.get_json() or {}
+    confirmation = _require_confirmation(data, "terminate this investigation")
+    if confirmation:
+        return confirmation
+    try:
+        gi.terminate(investigation, admin, (data.get("reason") or "").strip()[:500])
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"investigation": investigation.to_dict()})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/suspend-user", methods=["POST"])
+@jwt_required()
+def suspend_investigated_user(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    data = request.get_json() or {}
+    confirmation = _require_confirmation(data, "suspend this user")
+    if confirmation:
+        return confirmation
+    try:
+        gi.suspend_user(investigation, admin, (data.get("reason") or "").strip()[:500])
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"investigation": investigation.to_dict()})
+
+
+@ghost_bp.route("/ghost/users/<int:user_id>/reinstate", methods=["POST"])
+@jwt_required()
+def reinstate_suspended_user(user_id):
+    admin, error = _require_admin()
+    if error:
+        return error
+    data = request.get_json() or {}
+    confirmation = _require_confirmation(data, "reinstate this user")
+    if confirmation:
+        return confirmation
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({"error": "User not found"}), 404
+    try:
+        gi.reinstate_user(target, admin, (data.get("reason") or "").strip()[:500])
+    except gi.InvestigationError as exc:
+        return _error(exc)
+    return jsonify({"user": target.to_dict()})
+
+
+@ghost_bp.route("/ghost/investigations/<int:investigation_id>/report", methods=["GET"])
+@jwt_required()
+def export_investigation_report(investigation_id):
+    admin, investigation, error = _admin_and_investigation(investigation_id)
+    if error:
+        return error
+    report = gi.build_report(investigation, admin)
+    filename = f"secureai-{gi.resource_code(investigation).lower()}-report"
+    if (request.args.get("format") or "json").lower() == "csv":
+        return Response(
+            gi.report_to_csv(report),
+            mimetype="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+        )
+    response = jsonify(report)
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}.json"'
+    return response
+
+
+# ── investigation questions (customisable) ──────────────────────────────────
+
+@ghost_bp.route("/ghost/questions", methods=["GET"])
+@jwt_required()
+def list_investigation_questions():
+    _admin, error = _require_admin()
+    if error:
+        return error
+    questions = InvestigationQuestion.query.order_by(InvestigationQuestion.is_default.desc(), InvestigationQuestion.id.asc()).all()
+    return jsonify({"questions": [q.to_dict() for q in questions]})
+
+
+@ghost_bp.route("/ghost/questions", methods=["POST"])
+@jwt_required()
+def create_investigation_question():
+    admin, error = _require_admin()
+    if error:
+        return error
+    text = ((request.get_json() or {}).get("text") or "").strip()
+    if not text or len(text) > 500:
+        return jsonify({"error": "Question text is required (max 500 characters)"}), 400
+    from app.services.ghost_persona import check_admin_message
+
+    ok, reason = check_admin_message(text)
+    if not ok:
+        return jsonify({"error": reason}), 422
+    question = InvestigationQuestion(text=text, created_by_id=admin.id, is_default=False)
+    db.session.add(question)
+    db.session.commit()
+    return jsonify({"question": question.to_dict()}), 201
+
+
+@ghost_bp.route("/ghost/questions/<int:question_id>", methods=["PUT", "DELETE"])
+@jwt_required()
+def modify_investigation_question(question_id):
+    _admin, error = _require_admin()
+    if error:
+        return error
+    question = db.session.get(InvestigationQuestion, question_id)
+    if not question:
+        return jsonify({"error": "Question not found"}), 404
+    if request.method == "DELETE":
+        db.session.delete(question)
+        db.session.commit()
+        return jsonify({"status": "deleted"})
+    text = ((request.get_json() or {}).get("text") or "").strip()
+    if not text or len(text) > 500:
+        return jsonify({"error": "Question text is required (max 500 characters)"}), 400
+    question.text = text
+    db.session.commit()
+    return jsonify({"question": question.to_dict()})

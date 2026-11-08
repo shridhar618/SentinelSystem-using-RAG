@@ -53,6 +53,17 @@ def login():
         )
         return jsonify({"error": "Invalid credentials"}), 401
 
+    if user.is_active is False:
+        record_audit_event(
+            "login_failed",
+            user=user,
+            description=f"Login blocked for suspended account '{username}'",
+            status="blocked",
+            risk_level="high",
+            reason="Account suspended by an administrator.",
+        )
+        return jsonify({"error": "This account has been suspended. Contact an administrator."}), 403
+
     reset_attempts(client_ip, username)
     token = create_access_token(identity=str(user.id))
     role_name = user.role_ref.name if user.role_ref else user.role

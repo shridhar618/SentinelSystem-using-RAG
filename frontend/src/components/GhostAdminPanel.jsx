@@ -1,11 +1,12 @@
 import ConfirmDialog from './ConfirmDialog'
 import { useState, useEffect, useCallback } from 'react'
+import GhostInvestigationConsole from './GhostInvestigationConsole'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, AlertTriangle, Users, MessageSquare,
-  Lock, RefreshCw, Send, Eye, Cpu
+  Lock, RefreshCw, Send, Eye, Cpu, Crosshair, Ghost
 } from 'lucide-react'
-import { getGhostSocket } from '../utils/ghostSocket'
+import { getGhostSocket, joinGhostAdminRoom } from '../utils/ghostSocket'
 import { useAuth } from '../context/AuthContext'
 
 function RiskBar({ score }) {
@@ -26,9 +27,10 @@ function RiskBar({ score }) {
   )
 }
 
-export default function GhostAdminPanel() {
+export default function GhostAdminPanel({ focusAlertId, focusInvestigationId }) {
   const [confirmTerminate, setConfirmTerminate] = useState(null)
-  const { token } = useAuth()
+  const [activationRequest, setActivationRequest] = useState(null)
+  const { token, user } = useAuth()
   const socket = getGhostSocket()
   const [sessions, setSessions] = useState([])
   const [alerts, setAlerts]     = useState([])
@@ -58,7 +60,8 @@ export default function GhostAdminPanel() {
   }, [authToken, selected])
 
   useEffect(() => {
-    socket.emit('join_admin_room')
+    // admin_room now requires a verified admin JWT (server-side check).
+    joinGhostAdminRoom(authToken)
     fetchSessions()
 
     socket.on('trap_triggered', alert => {
@@ -77,7 +80,7 @@ export default function GhostAdminPanel() {
       socket.off('ghost_mode_changed')
       socket.off('user_frozen')
     }
-  }, [fetchSessions, socket])
+  }, [fetchSessions, socket, authToken])
 
   const takeControl = async (sessionId, mode) => {
     if (!authToken) return
@@ -134,6 +137,25 @@ export default function GhostAdminPanel() {
     >
       <div className="px-6 py-6 space-y-6">
 
+        {/* Interactive Ghost Mode upgrade: threat alerts + live investigations
+            of real suspicious users, fully database-backed. */}
+        <GhostInvestigationConsole
+          focusAlertId={focusAlertId}
+          focusInvestigationId={focusInvestigationId}
+          activationRequest={activationRequest}
+          onActivationHandled={() => setActivationRequest(null)}
+        />
+
+        <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+          <div className="w-9 h-9 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center mt-4">
+            <Ghost size={16} className="text-danger" />
+          </div>
+          <div className="mt-4">
+            <p className="text-sm font-bold text-white">Honeypot Sessions · Normal Ghost Mode</p>
+            <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Original trap &amp; track flow · escalate any session to an interactive investigation</p>
+          </div>
+        </div>
+
         {/* Simulation banner -- the fake honeypot responses below are
             written to sound like a genuinely compromised system (fake
             backdoors, fake leaked credentials), which is the point of a
@@ -142,7 +164,7 @@ export default function GhostAdminPanel() {
         <div className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-2.5 flex items-center gap-2">
           <AlertTriangle size={14} className="text-warn flex-shrink-0" />
           <p className="text-[11px] text-warn/90 font-medium">
-            SIMULATION MODE — All sessions, "leaked" credentials, and honeypot responses below are synthetic test data. No real system access, credentials, or user data are involved.
+            SIMULATION MODE — The honeypot sessions, "leaked" credentials, and auto responses in this section are synthetic bait. No real system access, credentials, or user data are involved. (Interactive investigations above use the isolated AI Persona, which never presents bait or real data.)
           </p>
         </div>
 
@@ -247,6 +269,9 @@ export default function GhostAdminPanel() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-white font-mono">{sess.user}</span>
                   <div className="flex items-center gap-1.5">
+                    {sess.investigation_id && (
+                      <span className="px-1.5 py-0.5 rounded bg-danger/10 border border-danger/25 text-[9px] text-danger font-mono">INVESTIGATING</span>
+                    )}
                     {sess.frozen && (
                       <span className="px-1.5 py-0.5 rounded bg-accent/10 border border-accent/20 text-[9px] text-accent font-mono">FROZEN</span>
                     )}
@@ -289,6 +314,15 @@ export default function GhostAdminPanel() {
                   >
                     <Eye size={12} className="inline mr-1.5" />Release to AI
                   </button>
+                  {selected.user !== user?.username && (
+                    <button
+                      onClick={() => setActivationRequest({ username: selected.user, legacy_session_id: selected.session_id })}
+                      className="px-3 py-2 rounded-xl bg-danger/15 border border-danger/30 text-xs text-danger font-bold"
+                      title="Escalate this honeypot session into an interactive investigation of the real user"
+                    >
+                      <Crosshair size={12} className="inline mr-1.5" />Activate Interactive Ghost Mode
+                    </button>
+                  )}
                   <button
                     onClick={() => freezeUser(selected.user)}
                     disabled={selected.frozen}
