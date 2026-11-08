@@ -19,6 +19,13 @@ from app.models.admin_action import AdminAction
 from app.models.risk_configuration import RiskConfiguration
 from app.models.security_event import SecurityEvent
 from app.models.notification import Notification
+from app.models.ghost_investigation import (
+    GhostInvestigation,
+    GhostInvestigationEvent,
+    GhostMessage,
+    InvestigationQuestion,
+    ThreatAlert,
+)
 
 __all__ = [
     "Role",
@@ -42,4 +49,9 @@ __all__ = [
     "RiskConfiguration",
     "SecurityEvent",
     "Notification",
+    "ThreatAlert",
+    "GhostInvestigation",
+    "GhostMessage",
+    "GhostInvestigationEvent",
+    "InvestigationQuestion",
 ]

@@ -6,7 +6,7 @@ All endpoints are JSON. Authenticated endpoints expect `Authorization: Bearer <J
 Errors are always `{"error": "<message>"}`; success confirmations use `{"message": "..."}`.
 Common statuses: `400` validation, `401` missing/expired token, `403` role or permission denied, `404` not found, `413` request too large (8 MB cap), `429` login rate limit.
 
-**90 endpoints.**
+**113 endpoints.**
 
 
 ## admin
@@ -37,7 +37,7 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 | Method | Path | Access | Notes |
 |---|---|---|---|
 | GET | `/api/attendance` | manager/admin (inline check) |  |
-| POST | `/api/attendance/mark` | manager/admin (inline check) |  |
+| POST | `/api/attendance/mark` | any authenticated user |  |
 | GET | `/api/attendance/me` | any authenticated user |  |
 | POST | `/api/face/register` | manager/admin (inline check) |  |
 
@@ -72,12 +72,23 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 | GET | `/api/chat/questions/review-queue` | admin (inline check) |  |
 | PATCH | `/api/chat/questions/review-queue/<queue_id>` | admin (inline check) |  |
 | GET | `/api/chat/questions/search` | any authenticated user |  |
+| GET | `/api/chat/status` | any authenticated user |  |
+| GET | `/api/chat/updates` | any authenticated user | Delivery fallback for assistant replies that arrive asynchronously (used when the socket is unavailable). Returns only replies addressed to the calling user. |
 
 ## compliance
 
 | Method | Path | Access | Notes |
 |---|---|---|---|
 | POST | `/api/compliance/check` | any authenticated user |  |
+
+## explorer
+
+| Method | Path | Access | Notes |
+|---|---|---|---|
+| GET | `/api/explorer/blocks` | admin (inline check) |  |
+| GET | `/api/explorer/blocks/<int:seq>` | admin (inline check) |  |
+| GET | `/api/explorer/stats` | admin (inline check) |  |
+| GET | `/api/explorer/verify` | admin (inline check) |  |
 
 ## ghost_routes
 
@@ -90,6 +101,23 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 | GET | `/api/ghost-sessions` | admin (inline check) |  |
 | POST | `/api/ghost-takeover` | admin (inline check) |  |
 | POST | `/api/ghost-terminate` | admin (inline check) | Phase 19's "terminate simulation" action -- the one item from the brief's admin-action checklist (observe / intervene / restrict / terminate) that had no endpoi |
+| GET | `/api/ghost/alerts` | admin (inline check) |  |
+| GET | `/api/ghost/alerts/<int:alert_id>` | admin (inline check) |  |
+| POST | `/api/ghost/alerts/<int:alert_id>/dismiss` | admin (inline check) |  |
+| GET | `/api/ghost/investigations` | admin (inline check) |  |
+| POST | `/api/ghost/investigations` | admin (inline check) |  |
+| GET | `/api/ghost/investigations/<int:investigation_id>` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/messages` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/mode` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/pause` | any authenticated user |  |
+| GET | `/api/ghost/investigations/<int:investigation_id>/report` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/resume` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/suspend-user` | any authenticated user |  |
+| POST | `/api/ghost/investigations/<int:investigation_id>/terminate` | any authenticated user |  |
+| GET | `/api/ghost/questions` | admin (inline check) |  |
+| POST | `/api/ghost/questions` | admin (inline check) |  |
+| PUT,DELETE | `/api/ghost/questions/<int:question_id>` | admin (inline check) |  |
+| POST | `/api/ghost/users/<int:user_id>/reinstate` | admin (inline check) |  |
 
 ## governance_cases
 
@@ -165,7 +193,7 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 
 | Method | Path | Access | Notes |
 |---|---|---|---|
-| GET | `/api/roles` | any authenticated user |  |
+| GET | `/api/roles` | public |  |
 
 ## security_events
 

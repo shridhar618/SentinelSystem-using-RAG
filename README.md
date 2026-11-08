@@ -14,12 +14,12 @@ Organizations have employees with different roles and permissions, but general-p
 4. **Cumulative risk → governance case → human decision** (warn / restrict / restore / escalate / resolve). Nothing is auto-terminated.
 5. **Real-time alerts** (Socket.IO), **audit log** of everything (AI requests, logins, admin actions, config/policy changes), **security events**.
 6. **Policy-grounded chatbot** — retrieves active company policy passages and uses a configured LLM to answer with source references, scoped to the signed-in user's role.
-7. Supporting modules: face-recognition attendance, Kanban tasks, KPI/workload, private messaging, Ghost Mode and Attack Simulation (safe, labelled simulations).
+7. Supporting modules: face-recognition attendance, Kanban tasks, KPI/workload, private messaging, Ghost Mode (honeypot simulation plus database-backed interactive investigations of real suspicious users, driven by contextual threat detection) and Attack Simulation (safe, labelled simulation).
 
 **Principles:** RBAC authorizes · the rule engine decides · policy documents provide evidence · the LLM explains · audit records · humans decide consequences.
 
 ## Tech stack
-Backend: Python, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-SocketIO · Frontend: React, Vite, Tailwind, Framer Motion, Recharts · DB: SQLite · AI/RAG: sentence-transformers, Qdrant, and a configured Ollama, Gemini, or OpenAI LLM · Vision (optional): OpenCV + face_recognition · Tests: pytest · CI: GitHub Actions.
+Backend: Python, Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-SocketIO · Frontend: React, Vite, Tailwind, Framer Motion, Recharts · DB: SQLite · AI/RAG: sentence-transformers, Qdrant, and a configured Ollama, Gemini, or OpenAI LLM · Vision: OpenCV (YuNet/Haar detection + LBPH embeddings) · Tests: pytest · CI: GitHub Actions.
 
 ## Quick start
 Requires Python 3.11+ and Node 18+.
@@ -93,20 +93,20 @@ Restart the backend. The chatbot status shows whether the LLM and policy retriev
 All documented in `backend/.env.example` (every variable there is actually read by the code): `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_ACCESS_TOKEN_EXPIRES_HOURS`, `CORS_ORIGINS` (**must include the origin you open the app from** — Socket.IO enforces it), `DATABASE_URL`, `PORT`, `DEBUG` (keep `0`), `AI_PROVIDER` + provider keys.
 
 ## Database, tests, evaluation
-- Schema: `docs/DATABASE_SCHEMA.md` (22 tables, SQLite, auto-created and auto-seeded at startup).
+- Schema: `docs/DATABASE_SCHEMA.md` (27 tables, SQLite, auto-created and auto-seeded at startup).
 - Tests: `cd backend && python -m pytest -v` → see `docs/TESTING.md` (**read the verification-status section**).
 - Risk-engine evaluation: `python scripts/evaluate_risk_engine.py` (run: 80 % decision / 86.7 % risk accuracy on 15 scenarios, with the 3 mismatches explained). RAG evaluation harness is included but **not yet run**.
 
 ## Documentation
-`docs/ARCHITECTURE.md` · `docs/API_DOCUMENTATION.md` (generated, 90 endpoints) · `docs/DATABASE_SCHEMA.md` (generated) · `docs/RISK_ENGINE.md` · `docs/RAG_PIPELINE.md` · `docs/TESTING.md` · `docs/DEMO_GUIDE.md` (6 demo workflows) · `docs/build-notes/` (phase-by-phase engineering log incl. decisions and findings) · `docs/legacy/` (superseded pre-capstone docs). Regenerate the generated docs with `python backend/scripts/generate_docs.py`.
+`docs/features/` (per-feature docs: tech stack, how it works, API, data, security) · `docs/ARCHITECTURE.md` · `docs/API_DOCUMENTATION.md` (generated, 113 endpoints) · `docs/DATABASE_SCHEMA.md` (generated) · `docs/RISK_ENGINE.md` · `docs/RAG_PIPELINE.md` · `docs/TESTING.md` · `docs/DEMO_GUIDE.md` (6 demo workflows) · `docs/build-notes/` (phase-by-phase engineering log incl. decisions and findings) · `docs/legacy/` (superseded pre-capstone docs). Regenerate the generated docs with `python backend/scripts/generate_docs.py`.
 
 ## Honest limitations
-- The author's environment had no network, so **the full pytest suite and the running app were not executed end-to-end before delivery**; static checks and the pure-Python logic tests were. Run `pytest` and `npm run build` first; see `docs/TESTING.md`.
+- The original author's environment had no network, so the suite was not run end-to-end at first delivery. It has since been run: **151/151 backend tests pass** (including 32 Ghost Mode investigation tests), `npm run build` succeeds, and the app was exercised live (HTTP + Socket.IO). Live LLM/RAG answers still need a configured provider and an ingested index; see `docs/TESTING.md`.
 - The rule engine has known coverage gaps (e.g. "personal addresses" phrasing isn't caught as PII; single keyword hits move the score little) — documented with evidence in `docs/RISK_ENGINE.md`.
 - The policy chatbot only knows the documents present in the indexed corpus. Add approved company policies through the policy management workflow and re-index them.
 - Face recognition accuracy has not been tested with a real camera.
 - SQLite, in-memory login rate limiter, single-process Socket.IO — fine for a prototype, not for production scale. No migration framework.
-- Ghost Mode / Attack Simulation are simulations with dummy data only.
+- Attack Simulation and the Ghost Mode honeypot are simulations with dummy data only. Ghost Mode interactive investigations act on real accounts (admin-only, confirmed, audited, isolated decoy); see `docs/features/12-ghost-mode.md`.
 
 ## Future scope
 Broaden/learn detection rules and add a labelled dataset; priority field on tasks; Redis-backed rate limiting and Socket.IO scaling; Postgres + Alembic; SSO; per-department policy sets.

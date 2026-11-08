@@ -243,7 +243,7 @@ export default function TopBar({ onToggleMobileNav }) {
                   </div>
                 )}
                 {!notifLoading && !notifError && notifications.map((n) => {
-                  const clickable = Boolean(n.related_case_id)
+                  const clickable = Boolean(n.related_case_id || n.related_alert_id)
                   const handleClick = async () => {
                     if (!n.is_read) {
                       try {
@@ -256,7 +256,7 @@ export default function TopBar({ onToggleMobileNav }) {
                     }
                     if (clickable) {
                       setNotifOpen(false)
-                      navigate('/governance-cases')
+                      navigate(n.related_alert_id ? `/ghost-mode?alert=${n.related_alert_id}` : '/governance-cases')
                     }
                   }
                   return (
@@ -270,7 +270,7 @@ export default function TopBar({ onToggleMobileNav }) {
                         <p className="text-[10px] text-slate-600 font-mono">
                           {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
                         </p>
-                        {clickable && <span className="text-[10px] text-accent font-semibold">View case →</span>}
+                        {clickable && <span className="text-[10px] text-accent font-semibold">{n.related_alert_id ? 'Investigate →' : 'View case →'}</span>}
                       </div>
                     </div>
                   )

@@ -123,6 +123,42 @@ def chat():
         # conversation history (_histories) or an AI provider's context window.
         return jsonify({"error": "Message is too long (max 4000 characters)."}), 400
 
+    # ── Interactive Ghost Mode diversion ────────────────────────────────
+    # A user under an open investigation is served by the isolated decoy
+    # (AI Persona or an administrator) instead of the real assistant: the
+    # message never reaches RAG, the policy index, or the production LLM
+    # context. The response deliberately has the normal chat shape.
+    from app.services import ghost_investigation as ghost_service
+
+    investigation = ghost_service.get_open_investigation_for_user(user.id)
+    if investigation is not None:
+        decoy = ghost_service.handle_suspect_message(investigation, user, query)
+        return jsonify({
+            "log_id": None,
+            "response": decoy["response"],
+            "pending": decoy["pending"],
+            "reply_cursor": decoy["reply_cursor"],
+            "status": "allowed",
+            "risk_score": 0.0,
+            "risk_level": "low",
+            "reason": None,
+            "triggered_rules": [],
+            "validator_notes": [],
+            "is_high_risk": False,
+            "recommended_action": None,
+            "policy_evidence": [],
+            "sources": [],
+            "role": user.role,
+            "matched_question": None,
+            "suggested_questions": [],
+        }), 200
+    # ── End Ghost Mode diversion ────────────────────────────────────────
+
+    from app.services.threat_detection import analyze_message, load_alert_threshold
+
+    threat = analyze_message(query)
+    threat_alert_threshold = load_alert_threshold()
+
     user_id = user.id
     if user_id not in _histories:
         _histories[user_id] = []
@@ -175,14 +211,18 @@ def chat():
             user.flagged_at = datetime.now(UTC)
 
     # ── Ghost Mode auto-feed ─────────────────────────────────────────────
-    if result.is_high_risk_alert or result.risk_level in ("high", "medium"):
+    if (
+        result.is_high_risk_alert
+        or result.risk_level in ("high", "medium")
+        or threat.score >= threat_alert_threshold
+    ):
         try:
             from app.ghost_routes import get_or_create_session, ghost_logs
             from app import socketio
 
             ghost_session = get_or_create_session(user.username)
             ghost_session["risk_score"] = max(
-                ghost_session["risk_score"], int((result.risk_score or 0) * 100)
+                ghost_session["risk_score"], int((result.risk_score or 0) * 100), threat.score
             )
 
             ghost_session["history"].append(
@@ -237,6 +277,7 @@ def chat():
                     "user": user.username,
                     "message": query,
                     "risk_score": int((result.risk_score or 0) * 100),
+                    "threat": threat.to_dict(),
                     "timestamp": datetime.utcnow().isoformat(),
                 },
                 room="admin_room",
@@ -269,6 +310,14 @@ def chat():
 
     record_risk_event(user, log, result, risk_config=risk_config)
 
+    # Interactive Ghost Mode: threat alert + real-time admin notification.
+    if threat.score >= threat_alert_threshold:
+        try:
+            ghost_service.record_threat_alert(user, query, threat, source="ai_chat", audit_log_id=log.id)
+        except Exception as alert_err:  # never break the main chat
+            db.session.rollback()
+            print(f"[ghost-alert] error: {alert_err}")
+
     return jsonify(
         {
             "log_id": log.id,
@@ -290,6 +339,24 @@ def chat():
             "suggested_questions": [],
         }
     ), 200
+
+
+@chat_bp.route("/chat/updates", methods=["GET"])
+@jwt_required()
+def chat_updates():
+    """Delivery fallback for assistant replies that arrive asynchronously
+    (used when the socket is unavailable). Returns only replies addressed
+    to the calling user."""
+    user = _get_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    try:
+        after = int(request.args.get("after", 0) or 0)
+    except (TypeError, ValueError):
+        after = 0
+    from app.services.ghost_investigation import pending_replies_for_user
+
+    return jsonify({"replies": pending_replies_for_user(user.id, after)}), 200
 
 
 @chat_bp.route("/chat/clear", methods=["POST"])
