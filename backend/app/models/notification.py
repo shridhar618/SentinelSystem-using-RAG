@@ -11,6 +11,9 @@ class Notification(db.Model):
     type = db.Column(db.String(40), nullable=False)  # e.g. "high_risk_request", "governance_case_opened"
     message = db.Column(db.Text, nullable=False)
     related_case_id = db.Column(db.Integer, db.ForeignKey("governance_cases.id"), nullable=True)
+    # Interactive Ghost Mode: lets a threat-alert notification deep-link to
+    # the alert/conversation in the Ghost Mode console.
+    related_alert_id = db.Column(db.Integer, db.ForeignKey("ghost_threat_alerts.id"), nullable=True)
     is_read = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), index=True)
 
@@ -24,6 +27,7 @@ class Notification(db.Model):
             "type": self.type,
             "message": self.message,
             "related_case_id": self.related_case_id,
+            "related_alert_id": self.related_alert_id,
             "is_read": self.is_read,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

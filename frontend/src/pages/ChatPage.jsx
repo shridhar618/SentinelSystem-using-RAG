@@ -9,6 +9,7 @@ import {
 
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import { getSocket } from '../utils/socket'
 import { getRoleMeta } from '../utils/roles'
 
 const STATUS_CONFIG = {
@@ -184,7 +185,7 @@ function ChatBubble({ msg, onFeedback }) {
 }
 
 export default function ChatPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [messages, setMessages] = useState([{
     id: 'welcome',
     role: 'assistant',
@@ -197,6 +198,9 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [assistantStatus, setAssistantStatus] = useState(null)
+  const [awaitingReply, setAwaitingReply] = useState(false)
+  const replyCursorRef = useRef(null)      // id of the last async reply seen
+  const seenReplyIdsRef = useRef(new Set())
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const currentRole = getRoleMeta(user?.role)
@@ -209,6 +213,46 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  // Some replies arrive asynchronously (e.g. after a hand-off), pushed over
+  // the authenticated socket to this user's private room, with an HTTP
+  // fallback below. Duplicate deliveries are ignored by id.
+  const appendAsyncReply = (reply) => {
+    if (!reply || seenReplyIdsRef.current.has(reply.id)) return
+    seenReplyIdsRef.current.add(reply.id)
+    replyCursorRef.current = Math.max(replyCursorRef.current || 0, reply.id)
+    setAwaitingReply(false)
+    setMessages(prev => [...prev, {
+      id: `reply-${reply.id}`,
+      role: 'assistant',
+      content: reply.content,
+      timestamp: reply.timestamp || new Date().toISOString(),
+      status: 'allowed',
+      risk_level: 'low',
+      risk_score: 0,
+    }])
+  }
+
+  useEffect(() => {
+    if (!token) return undefined
+    const socket = getSocket(token)
+    const onReply = (reply) => appendAsyncReply(reply)
+    socket.on('assistant_reply', onReply)
+    return () => { socket.off('assistant_reply', onReply) }
+  }, [token])
+
+  useEffect(() => {
+    if (!awaitingReply) return undefined
+    const poll = setInterval(async () => {
+      try {
+        const { data } = await api.get('/chat/updates', { params: { after: replyCursorRef.current || 0 } })
+        ;(data.replies || []).forEach(appendAsyncReply)
+      } catch {
+        // transient; keep waiting
+      }
+    }, 4000)
+    return () => clearInterval(poll)
+  }, [awaitingReply])
 
   useEffect(() => {
     api.get('/chat/status').then(({ data }) => setAssistantStatus(data)).catch(() => setAssistantStatus(null))
@@ -227,7 +271,15 @@ export default function ChatPage() {
 
     try {
       const res = await api.post('/chat', { message: msg })
-      const { log_id, response, status, risk_score, risk_level, reason, triggered_rules, validator_notes, is_high_risk, recommended_action, policy_evidence, sources } = res.data
+      const { log_id, response, status, risk_score, risk_level, reason, triggered_rules, validator_notes, is_high_risk, recommended_action, policy_evidence, sources, pending, reply_cursor } = res.data
+      if (reply_cursor) {
+        replyCursorRef.current = Math.max(replyCursorRef.current || 0, reply_cursor)
+        if (!pending) seenReplyIdsRef.current.add(reply_cursor)
+      }
+      if (pending) {
+        setAwaitingReply(true)
+        return
+      }
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
@@ -340,7 +392,7 @@ export default function ChatPage() {
             <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
               <AnimatePresence initial={false}>
                 {messages.map(msg => <ChatBubble key={msg.id} msg={msg} onFeedback={submitFeedback} />)}
-                {loading && <TypingIndicator key="typing" />}
+                {(loading || awaitingReply) && <TypingIndicator key="typing" />}
               </AnimatePresence>
               <div ref={bottomRef} />
             </div>

@@ -32,6 +32,8 @@ EVENT_TYPES = [
     "role_change",
     "user_created",
     "security_event",
+    # Interactive Ghost Mode administrator actions.
+    "ghost_investigation",
 ]
 
 
