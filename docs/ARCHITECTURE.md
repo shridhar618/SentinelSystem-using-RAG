@@ -8,7 +8,7 @@ React + Vite + Tailwind + Framer Motion  (:3000, proxies /api and /socket.io)
         │ REST (JWT in Authorization header)         │ Socket.IO (JWT in query)
         ▼                                            ▼
 Flask app factory (backend/app/__init__.py)  ──  Flask-SocketIO
- ├─ routes/ (20 blueprints, 90 endpoints)  → see API_DOCUMENTATION.md
+ ├─ routes/ (21 blueprints, 113 endpoints)  → see API_DOCUMENTATION.md
  ├─ utils/authz.py            get_current_user, require_role, require_permission
  ├─ services/
  │   ├─ governance.py         rule-based compliance + risk engine (pure Python)
@@ -19,9 +19,13 @@ Flask app factory (backend/app/__init__.py)  ──  Flask-SocketIO
  │   ├─ notifications.py      persist + real-time emit
  │   ├─ ai_service.py         Gemini / OpenAI / Ollama(gemma3:4b) + TF-IDF fallback
  │   ├─ rag_service.py        optional policy retrieval (Qdrant + sentence-transformers)
- │   ├─ face_attendance.py    OpenCV face detection + face_recognition embeddings
+ │   ├─ face_attendance.py    OpenCV YuNet/Haar face detection + LBPH embeddings
+ │   ├─ threat_detection.py   contextual 0–100 threat scoring (Ghost Mode)
+ │   ├─ ghost_investigation.py  investigation workflow, alerts, reports
+ │   ├─ ghost_persona.py      isolated decoy AI + injection/output guards
+ │   ├─ ledger.py             SHA-256 hash chain over audit_logs
  │   └─ rate_limit.py         login brute-force limiter
- └─ models/ (22 tables) → see DATABASE_SCHEMA.md
+ └─ models/ (27 tables) → see DATABASE_SCHEMA.md
 SQLite (secureai.db)         Qdrant local index (optional, backend/qdrant_data/)
 ```
 
@@ -56,20 +60,23 @@ Principles: RBAC authorizes · the rule engine decides · policy documents suppl
 | Attendance | `routes/attendance.py`, `services/face_attendance.py` | `FaceAttendancePage`, `FaceUnlockPage` |
 | Tasks / KPI | `routes/work_management.py` | `WorkBoardPage`, `MyWorkPage`, `WorkloadPage`, … |
 | Messaging | `routes/messages.py`, `routes/socket_events.py` | `PrivateChatPage` |
-| Security demo | `ghost_routes.py`, `attack_routes.py` | `GhostModePage`, `AttackSimPage` |
+| Ghost Mode | `ghost_routes.py`, `services/threat_detection.py`, `services/ghost_investigation.py`, `services/ghost_persona.py` | `GhostModePage`, `GhostAdminPanel`, `GhostInvestigationConsole` |
+| Attack simulation | `attack_routes.py` | `AttackSimPage` |
+| Blockchain Explorer | `routes/explorer.py`, `services/ledger.py` | `modules/explorer/` |
 
 ## Security boundaries
-- **Every API route requires a JWT** except `POST /auth/login` and `/auth/register` (disabled). Verified by an AST scan of all 90 routes.
+- **Every API route requires a JWT** except `POST /auth/login` and `/auth/register` (disabled). Suspended accounts (`is_active = False`) have their JWT rejected on every route and cannot sign in or open a socket.
 - Authorization is enforced **server-side** (`require_permission`, `require_role`, inline admin checks); the UI only hides what a role can't use.
-- Socket.IO: private rooms (`user_<id>`) are joined only after JWT verification; Ghost Mode uses a separate `ghost_user_*` namespace so a client-supplied value can never subscribe to another user's messages/alerts. Origins are enforced against `CORS_ORIGINS`.
+- Socket.IO: private rooms (`user_<id>`) are joined only after JWT verification; `admin_room` (live Ghost Mode alerts and investigations) requires a verified admin JWT. The honeypot demo uses a separate `ghost_user_*` namespace carrying only synthetic data. Origins are enforced against `CORS_ORIGINS`.
 - JWTs expire; the UI redirects to login on 401. Passwords hashed (werkzeug). Login rate-limited per (IP, username). 8 MB request cap. JSON-only errors, no stack traces; unhandled errors logged server-side.
 - `DEBUG` is off by default; startup warns if `SECRET_KEY`/`JWT_SECRET_KEY` are defaults (`setup.sh` generates random ones).
 
 ## Ghost Mode and Attack Simulation (safety boundary)
-Admin-only **simulations** using canned/dummy data. No credential capture, no keylogging, no real attacks, no surveillance of real users. The admin view is banner-labelled "SIMULATION MODE". Attack Simulation writes clearly-labelled `[SIMULATED]` `security_events` and can clear them.
+- **Honeypot (normal Ghost Mode)** and **Attack Simulation** are admin-only simulations using canned/dummy data, banner-labelled "SIMULATION MODE"; Attack Simulation writes `[SIMULATED]` `security_events` and can clear them.
+- **Interactive investigations** act on real users, so they are tightly bounded: contextual threat detection raises an alert → an admin explicitly activates (server-side confirmation) → the suspect's chatbot traffic is diverted to an **isolated decoy** that never touches RAG, the policy index or user records → AI Persona (prompt-injection and output guards) or Admin Manual Control (single controlling admin, forced takeover logged) → every action recorded in the investigation timeline and the hash-chained audit log → terminate or suspend (confirmed). Admin accounts can't be targeted; sessions expire. Details: `features/12-ghost-mode.md`.
 
 ## Frontend routes
-`/login`, `/welcome`, `/my-dashboard`, `/chat`, `/policy-sources`*, `/governance-cases`*, `/dashboard`*, `/ghost-mode`*, `/attack-sim`*, `/user-access`*, `/question-bank`*, `/attendance`, `/my-work`, `/workload`, `/work-assignments`†, `/work-board`†, `/work-escalations`†, `/messages` (* admin, † manager). Sidebar sections appear only if the role has something in them.
+`/login`, `/welcome`, `/my-dashboard`, `/chat`, `/policy-sources`*, `/governance-cases`*, `/dashboard`*, `/ghost-mode`*, `/attack-sim`*, `/blockchain-explorer`*, `/user-access`*, `/question-bank`*, `/attendance`, `/my-work`, `/workload`, `/work-assignments`†, `/work-board`†, `/work-escalations`†, `/messages` (* admin, † manager). Sidebar sections appear only if the role has something in them.
 
 ## Deliberate simplifications (MCA-capstone scope)
 SQLite instead of Postgres; no migration framework (idempotent `_ensure_*` helpers); in-memory rate limiter; single-process Socket.IO; RAG is optional and offline from the decision path.
