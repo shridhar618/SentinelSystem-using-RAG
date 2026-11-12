@@ -93,7 +93,6 @@ export default function Layout() {
         ? [
             { to: '/user-management', icon: Users, label: 'Users & Logins', desc: 'Login history & user CRUD' },
             { to: '/user-access', icon: UserPlus, label: 'User Access', desc: 'Create accounts' },
-            { to: '/question-bank', icon: Database, label: 'Question Bank', desc: 'Dataset ops' },
           ]
         : [],
     },
