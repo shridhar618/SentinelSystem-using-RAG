@@ -18,7 +18,7 @@ Each document below follows the same structure: **Overview â†’ Who can use it â†
 | 8 | Audit Logging, Admin Dashboard & Security Events | Admin | [08-audit-and-admin-dashboard.md](08-audit-and-admin-dashboard.md) |
 | 9 | Blockchain Explorer (tamper-evident audit chain) | Admin | [09-blockchain-explorer.md](09-blockchain-explorer.md) |
 | 10 | Policy Sources & RAG Pipeline | Admin | [10-policy-sources-and-rag.md](10-policy-sources-and-rag.md) |
-| 11 | Question Bank | Admin (manage), everyone (favourites/feedback) | [11-question-bank.md](11-question-bank.md) |
+| 11 | Users & Logins (user management, login history) | Admin | [11-user-management.md](11-user-management.md) |
 | 12 | Ghost Mode (Honeypot + Interactive Investigations) | Admin | [12-ghost-mode.md](12-ghost-mode.md) |
 | 13 | Attack Simulator | Admin | [13-attack-simulator.md](13-attack-simulator.md) |
 | 14 | Work Management (assignments, KPI, board, escalations) | Managers / employees | [14-work-management.md](14-work-management.md) |
@@ -40,9 +40,9 @@ Each document below follows the same structure: **Overview â†’ Who can use it â†
 | Password hashing | **Werkzeug** security helpers | PBKDF2 password / login-code hashes |
 | CORS | **Flask-CORS** | Restricts API to configured origins |
 | LLM providers | **Google Gemini** (`google-generativeai`), **OpenAI**, **Ollama** (local, e.g. `gemma3:4b`) | Phrasing answers; selected by `AI_PROVIDER` |
-| Classic ML | **scikit-learn** (TF-IDF + cosine similarity), **NumPy** | Question-bank matching |
+| Numerics | **NumPy** | Face-embedding maths |
 | Computer vision | **OpenCV (contrib)** â€” YuNet DNN / Haar cascade, **Pillow** | Face detection + LBPH embeddings |
-| Documents | **pypdf** | PDF text extraction (policies, question import) |
+| Documents | **pypdf** | PDF text extraction (policies) |
 | Optional RAG | **LangChain text splitters**, **sentence-transformers** (`all-MiniLM-L6-v2`), **Qdrant** (local) | Policy retrieval |
 | Testing | **pytest** | 151 backend tests |
 

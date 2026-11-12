@@ -68,15 +68,6 @@ An auditable administrator action taken on a GovernanceCase.
 | created_at | DateTime | default |
 | updated_at | DateTime | default |
 
-## `favorite_questions` (FavoriteQuestion)
-
-| Column | Type | Notes |
-|---|---|---|
-| id | Integer | PK |
-| user_id | Integer | not null, FK -> users.id |
-| question_id | String(120) | not null |
-| created_at | DateTime | default |
-
 ## `ghost_threat_alerts` (ThreatAlert)
 
 | Column | Type | Notes |
