@@ -2,7 +2,7 @@
 Face attendance service — OpenCV-based implementation (no dlib / face_recognition).
 
 Uses a two-stage pipeline that works with opencv-python 4.x and 5.x,
-numpy, Pillow, and scikit-learn (all already in requirements.txt):
+numpy and Pillow (both already in requirements.txt):
 
   Stage 1 — Detection
     • OpenCV 5: YuNet DNN detector (FaceDetectorYN). The ONNX model file
