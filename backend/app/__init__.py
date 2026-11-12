@@ -136,6 +136,7 @@ def create_app():
     from app.routes.me import me_bp
     from app.routes.governance_cases import governance_cases_bp
     from app.routes.explorer import explorer_bp
+    from app.routes.user_management import user_management_bp
     from app.ghost_routes import ghost_bp
     from app.attack_routes import attack_bp
 
@@ -158,6 +159,7 @@ def create_app():
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(governance_cases_bp, url_prefix="/api")
     app.register_blueprint(explorer_bp, url_prefix="/api")
+    app.register_blueprint(user_management_bp, url_prefix="/api")
     app.register_blueprint(ghost_bp, url_prefix="/api")
     app.register_blueprint(attack_bp, url_prefix="/api")
 

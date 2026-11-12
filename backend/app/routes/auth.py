@@ -13,6 +13,14 @@ from app.services.rate_limit import is_rate_limited, record_attempt, reset_attem
 auth_bp = Blueprint("auth", __name__)
 
 
+def _client_info(**extra) -> dict:
+    """IP address and browser of the current request, stored with login
+    audit events so the admin Users & Logins page can show where a sign-in
+    came from."""
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+    return {"ip": ip, "user_agent": (request.headers.get("User-Agent") or "")[:255], **extra}
+
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
     return jsonify({"error": "Public registration is disabled. Contact an admin to create your account."}), 403
@@ -50,6 +58,7 @@ def login():
             status="blocked",
             risk_level="medium",
             reason="Invalid credentials supplied.",
+            metadata=_client_info(),
         )
         return jsonify({"error": "Invalid credentials"}), 401
 
@@ -61,6 +70,7 @@ def login():
             status="blocked",
             risk_level="high",
             reason="Account suspended by an administrator.",
+            metadata=_client_info(),
         )
         return jsonify({"error": "This account has been suspended. Contact an administrator."}), 403
 
@@ -71,7 +81,7 @@ def login():
         "login",
         user=user,
         description=f"User '{user.username}' signed in",
-        metadata={"method": "login_code" if login_code_matches else "password"},
+        metadata=_client_info(method="login_code" if login_code_matches else "password"),
     )
     return jsonify({
         "token": token,
@@ -92,7 +102,8 @@ def logout():
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    record_audit_event("logout", user=user, description=f"User '{user.username}' signed out")
+    record_audit_event("logout", user=user, description=f"User '{user.username}' signed out",
+                       metadata=_client_info())
     return jsonify({"message": "Signed out"}), 200
 
 
