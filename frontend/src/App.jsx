@@ -21,6 +21,7 @@ import MyWorkPage from './pages/MyWorkPage'
 import WorkBoardPage from './pages/WorkBoardPage'
 import WorkEscalationsPage from './pages/WorkEscalationsPage'
 import AdminCreateUserPage from './pages/AdminCreateUserPage'
+import UserManagementPage from './pages/UserManagementPage'
 import BlockchainExplorer from './modules/explorer'
 import { isManagerRole } from './utils/roles'
 
@@ -106,6 +107,12 @@ function AppRoutes() {
         <Route path="user-access" element={
           <ProtectedRoute adminOnly>
             <AdminCreateUserPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="user-management" element={
+          <ProtectedRoute adminOnly>
+            <UserManagementPage />
           </ProtectedRoute>
         } />
 
