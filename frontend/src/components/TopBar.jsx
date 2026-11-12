@@ -19,7 +19,6 @@ const PAGE_TITLES = {
   '/user-management': { title: 'Users & Logins', desc: 'Login history and user management' },
   '/user-access': { title: 'User Access', desc: 'Create accounts and assign roles' },
   '/dashboard': { title: 'Governance Dashboard', desc: 'Audit activity and risk analytics' },
-  '/question-bank': { title: 'Question Bank', desc: 'Governed Q&A dataset operations' },
   '/ghost-mode': { title: 'Ghost Mode', desc: 'Controlled security intervention simulation' },
   '/attack-sim': { title: 'Attack Simulator', desc: 'Safe, labeled security event generation' },
   '/my-dashboard': { title: 'My Dashboard', desc: 'Your usage, risk and tasks at a glance' },
@@ -40,7 +39,6 @@ const SEARCH_TARGETS = [
   { to: '/user-management', label: 'Users & Logins', keywords: 'admin users login history edit delete deactivate' },
   { to: '/user-access', label: 'User Access', keywords: 'admin create user accounts' },
   { to: '/dashboard', label: 'Governance Dashboard', keywords: 'audit logs analytics dashboard' },
-  { to: '/question-bank', label: 'Question Bank', keywords: 'dataset questions answers' },
   { to: '/ghost-mode', label: 'Ghost Mode', keywords: 'security stealth monitoring' },
   { to: '/attack-sim', label: 'Attack Simulator', keywords: 'security testing simulation' },
 ]

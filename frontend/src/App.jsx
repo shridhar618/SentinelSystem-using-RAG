@@ -11,7 +11,6 @@ import GovernanceCasesPage from './pages/GovernanceCasesPage'
 import PolicySourcesPage from './pages/PolicySourcesPage'
 import WorkloadPage from './pages/WorkloadPage'
 import MyDashboardPage from './pages/MyDashboardPage'
-import QuestionBankPage from './pages/QuestionBankPage'
 import FaceAttendancePage from './pages/FaceAttendancePage'
 import FaceUnlockPage from './pages/FaceUnlockPage'
 import GhostModePage from './pages/GhostModePage'
@@ -125,12 +124,6 @@ function AppRoutes() {
         <Route path="attack-sim" element={
           <ProtectedRoute adminOnly>
             <AttackSimPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="question-bank" element={
-          <ProtectedRoute adminOnly>
-            <QuestionBankPage />
           </ProtectedRoute>
         } />
 

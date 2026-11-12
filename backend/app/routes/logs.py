@@ -11,7 +11,6 @@ from app.models.audit_log import AuditLog
 from app.models.governance_case import GovernanceCase
 from app.models.question_feedback import QuestionFeedback
 from app.models.user import User
-from app.services.ai_service import get_question_bank_analytics, infer_question_category
 from app.services.governance import SUSPICIOUS_QUERY_THRESHOLD
 from app.utils.authz import get_current_user
 
@@ -24,12 +23,29 @@ def _require_admin():
 
 
 def _serialize_logs(logs: list[AuditLog]) -> list[dict]:
-    serialized = []
+    return [log.to_dict() for log in logs]
+
+
+def _chat_quality_analytics(logs: list[dict], feedback_rows: list[dict]) -> dict:
+    """Blocked AI requests per role, and the questions users most often
+    rated unhelpful (from the thumbs-down button in the chat)."""
+    blocked_by_role = {}
     for log in logs:
-        row = log.to_dict()
-        row["category"] = infer_question_category(log.query)
-        serialized.append(row)
-    return serialized
+        if log.get("status") == "blocked":
+            role = log.get("role", "unknown")
+            blocked_by_role[role] = blocked_by_role.get(role, 0) + 1
+
+    unhelpful_counts = {}
+    for row in feedback_rows:
+        query_text = str(row.get("query", "")).strip()
+        if row.get("value") == "unhelpful" and query_text:
+            unhelpful_counts[query_text] = unhelpful_counts.get(query_text, 0) + 1
+
+    low_quality = sorted(
+        ({"query": query, "count": count} for query, count in unhelpful_counts.items()),
+        key=lambda item: (-item["count"], item["query"].lower()),
+    )[:5]
+    return {"blocked_by_role": blocked_by_role, "low_quality_responses": low_quality}
 
 
 @logs_bp.route("/logs", methods=["GET"])
@@ -44,7 +60,6 @@ def get_logs():
     filter_risk = request.args.get("risk_level", "").strip()
     filter_high = request.args.get("high_risk", "").strip()
     filter_query = request.args.get("query", "").strip().lower()
-    filter_category = request.args.get("category", "").strip().lower()
     filter_event_type = request.args.get("event_type", "").strip()
     filter_date_from = request.args.get("date_from", "").strip()
     filter_date_to = request.args.get("date_to", "").strip()
@@ -93,18 +108,10 @@ def get_logs():
     page = max(page, 1)
     per_page = min(max(per_page, 1), 100)
     start = (page - 1) * per_page
-    if filter_category:
-        # "category" is inferred in Python (question-bank matching), not
-        # stored in a column, so this one filter can't be pushed into SQL.
-        logs = [log for log in query.all() if (infer_question_category(log.query) or "").lower() == filter_category]
-        total = len(logs)
-        paginated = logs[start:start + per_page]
-    else:
-        # Phase 32: every other filter is SQL, so count + slice in the
-        # database instead of loading the entire matching set into memory
-        # just to return one page of it.
-        total = query.count()
-        paginated = query.offset(start).limit(per_page).all()
+    # Every filter is SQL, so count + slice in the database instead of
+    # loading the entire matching set into memory for one page.
+    total = query.count()
+    paginated = query.offset(start).limit(per_page).all()
 
     return jsonify({
         "logs": _serialize_logs(paginated),
@@ -124,7 +131,7 @@ def get_stats():
     # Phase 12 put non-chat events (login, admin actions, ...) in the same
     # table. The dashboard's AI-governance counters must only count AI
     # requests -- otherwise a failed login (status="blocked") inflates
-    # "blocked requests" and login rows pollute the question-bank analytics.
+    # "blocked requests" and login rows pollute the chat analytics.
     ai_only = or_(AuditLog.event_type.is_(None), AuditLog.event_type == "ai_request")
     audit_logs_query = db.session.query(AuditLog).filter(ai_only)
 
@@ -232,7 +239,7 @@ def get_stats():
         usage_over_time.append({"date": day, "count": usage_by_day.get(day, 0)})
 
     # Phase 32: this used to load EVERY audit row into memory on each
-    # dashboard visit. The question-bank analytics only need recent AI
+    # dashboard visit. The chat-quality analytics only need recent AI
     # requests; capping at the latest 2000 keeps the cost bounded as the
     # table grows.
     all_logs = [
@@ -257,7 +264,7 @@ def get_stats():
             "note": feedback.note,
             "query": query_text,
         })
-    bank_analytics = get_question_bank_analytics(all_logs, feedback_rows)
+    chat_analytics = _chat_quality_analytics(all_logs, feedback_rows)
 
     return jsonify({
         "total": total,
@@ -294,7 +301,7 @@ def get_stats():
             for item in suspicious_users
         ],
         "recent_high_risk": _serialize_logs(recent_high_risk),
-        **bank_analytics,
+        **chat_analytics,
     }), 200
 
 
@@ -308,7 +315,7 @@ def export_logs():
     logs = db.session.query(AuditLog).order_by(AuditLog.timestamp.desc()).all()
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=[
-        "timestamp", "username", "role", "category", "query", "status", "risk_level", "risk_score", "reason",
+        "timestamp", "username", "role", "query", "status", "risk_level", "risk_score", "reason",
     ])
     writer.writeheader()
     for log in logs:
@@ -316,7 +323,6 @@ def export_logs():
             "timestamp": log.timestamp.isoformat(),
             "username": log.username,
             "role": log.role,
-            "category": infer_question_category(log.query) or "",
             "query": log.query,
             "status": log.status,
             "risk_level": log.risk_level,
