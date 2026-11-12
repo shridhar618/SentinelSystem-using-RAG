@@ -6,7 +6,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import {
   Activity, AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, EyeOff,
   Filter, Lock, RefreshCw, Search, ShieldAlert, ShieldCheck, TrendingUp,
-  UserX, Zap, Database, MessageCircleQuestion, ThumbsDown, Clock, Ban,
+  UserX, Zap, ThumbsDown, Clock, Ban,
 } from 'lucide-react'
 
 import api from '../utils/api'
@@ -75,7 +75,6 @@ function ExplainDrawer({ log, onClose }) {
         <div className="glass-light rounded-xl p-3 space-y-2 text-xs font-mono">
           <div className="flex justify-between"><span className="text-slate-500">User</span><span className="text-white">{log.username}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Role</span><span className="text-white">{log.role}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Category</span><span className="text-white">{log.category || 'Unmatched'}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Time</span><span className="text-white">{format(new Date(log.timestamp), 'MMM dd HH:mm:ss')}</span></div>
           <div className="flex justify-between items-center"><span className="text-slate-500">Risk</span><RiskBadge level={log.risk_level || 'low'} /></div>
         </div>
@@ -188,7 +187,6 @@ export default function DashboardPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [filterUser, setFilterUser] = useState('')
   const [filterQuery, setFilterQuery] = useState('')
-  const [filterCategory, setFilterCategory] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterRisk, setFilterRisk] = useState('')
   const [filterEventType, setFilterEventType] = useState('')
@@ -237,7 +235,6 @@ export default function DashboardPage() {
             per_page: 15,
             username: filterUser || undefined,
             query: filterQuery || undefined,
-            category: filterCategory || undefined,
             status: filterStatus || undefined,
             risk_level: filterRisk || undefined,
             event_type: filterEventType || undefined,
@@ -253,7 +250,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, filterUser, filterQuery, filterCategory, filterStatus, filterRisk, filterEventType, filterDateFrom, filterDateTo])
+  }, [page, filterUser, filterQuery, filterStatus, filterRisk, filterEventType, filterDateFrom, filterDateTo])
 
   useEffect(() => {
     fetchData()
@@ -334,12 +331,6 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard icon={TrendingUp} label="High Risk Alerts" value={stats.high_risk_alerts} color="#c4553f" />
-              <StatCard icon={Database} label="Dataset Questions" value={stats.question_bank_total || 0} color="#5f86a8" />
-              <StatCard icon={MessageCircleQuestion} label="Open Review Queue" value={stats.unanswered_count || 0} color="#c46a78" />
-              <StatCard icon={ThumbsDown} label="Low Quality Responses" value={stats.low_quality_responses?.length || 0} color="#d07a3a" />
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <StatCard icon={AlertTriangle} label="Risky Requests" value={stats.risky_requests ?? 0} color="#c9922e" />
               <StatCard icon={Clock} label="Open Governance Cases" value={stats.open_governance_cases ?? 0} color="#8a7bb8" />
               <StatCard icon={Ban} label="Active Restrictions" value={stats.active_restrictions ?? 0} color="#c4553f" />
@@ -411,19 +402,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="glass rounded-2xl p-5 border border-white/5">
-                <p className="text-xs font-bold text-white mb-3">Most Asked Questions</p>
-                <div className="space-y-2">
-                  {(stats.top_questions || []).map(item => (
-                    <div key={item.question} className="px-3 py-2 rounded-xl bg-bg-800/70 border border-white/8">
-                      <p className="text-sm text-white">{item.question}</p>
-                      <p className="text-[10px] font-mono text-slate-500 mt-1">{item.count} exact asks</p>
-                    </div>
-                  ))}
-                  {!stats.top_questions?.length && <p className="text-xs text-slate-500">No matched dataset usage yet.</p>}
-                </div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="glass rounded-2xl p-5 border border-white/5">
                 <p className="text-xs font-bold text-white mb-3">Blocked Queries By Role</p>
                 <div className="space-y-2">
@@ -437,15 +416,18 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="glass rounded-2xl p-5 border border-white/5">
-                <p className="text-xs font-bold text-white mb-3">Open Unanswered Queries</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <ThumbsDown size={13} className="text-warn" />
+                  <p className="text-xs font-bold text-white">Answers Rated Unhelpful</p>
+                </div>
                 <div className="space-y-2">
-                  {(stats.open_unanswered || []).map(item => (
-                    <div key={item.id} className="px-3 py-2 rounded-xl bg-bg-800/70 border border-white/8">
+                  {(stats.low_quality_responses || []).map(item => (
+                    <div key={item.query} className="px-3 py-2 rounded-xl bg-bg-800/70 border border-white/8">
                       <p className="text-sm text-white">{item.query}</p>
-                      <p className="text-[10px] font-mono text-slate-500 mt-1">{item.count} time(s) · latest {item.latest_username}</p>
+                      <p className="text-[10px] font-mono text-slate-500 mt-1">{item.count} unhelpful rating{item.count === 1 ? '' : 's'}</p>
                     </div>
                   ))}
-                  {!stats.open_unanswered?.length && <p className="text-xs text-slate-500">No unanswered items in the queue.</p>}
+                  {!stats.low_quality_responses?.length && <p className="text-xs text-slate-500">No answers have been rated unhelpful.</p>}
                 </div>
               </div>
             </div>
@@ -458,7 +440,6 @@ export default function DashboardPage() {
               {[
                 { value: filterUser, setter: setFilterUser, placeholder: 'Filter user...', width: 'w-40' },
                 { value: filterQuery, setter: setFilterQuery, placeholder: 'Search query...', width: 'w-44' },
-                { value: filterCategory, setter: setFilterCategory, placeholder: 'Category...', width: 'w-36' },
               ].map(item => (
                 <div key={item.placeholder} className="relative">
                   <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -495,22 +476,21 @@ export default function DashboardPage() {
                 <table className="w-full text-[11px] font-mono">
                   <thead>
                     <tr className="border-b border-white/5 text-slate-500 uppercase tracking-wider text-[10px]">
-                      {['Time', 'User', 'Role', 'Category', 'Query', 'Status', 'Risk', 'Explain'].map(header => (
+                      {['Time', 'User', 'Role', 'Query', 'Status', 'Risk', 'Explain'].map(header => (
                         <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={8} className="text-center py-12 text-slate-600">Loading...</td></tr>
+                      <tr><td colSpan={7} className="text-center py-12 text-slate-600">Loading...</td></tr>
                     ) : !logs.length ? (
-                      <tr><td colSpan={8} className="text-center py-12 text-slate-600">No logs match current filters</td></tr>
+                      <tr><td colSpan={7} className="text-center py-12 text-slate-600">No logs match current filters</td></tr>
                     ) : logs.map(log => (
                       <tr key={log.id} className={`border-b border-white/5 transition-colors ${log.is_high_risk ? 'hover:bg-danger/5 bg-danger/3' : 'hover:bg-white/5'}`}>
                         <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{format(new Date(log.timestamp), 'MM/dd HH:mm:ss')}</td>
                         <td className="px-4 py-3 text-slate-300 font-semibold">{log.username}</td>
                         <td className="px-4 py-3 text-slate-400 uppercase">{log.role}</td>
-                        <td className="px-4 py-3 text-slate-400">{log.category || 'Unmatched'}</td>
                         <td className="px-4 py-3 text-slate-400 max-w-[180px] truncate">{log.query}</td>
                         <td className="px-4 py-3"><span className={`uppercase text-[10px] font-bold px-1.5 py-0.5 rounded border ${log.status === 'allowed' ? 'text-success bg-success/10 border-success/20' : log.status === 'filtered' ? 'text-warn bg-warn/10 border-warn/20' : 'text-danger bg-danger/10 border-danger/20'}`}>{log.status}</span></td>
                         <td className="px-4 py-3"><RiskBadge level={log.risk_level || 'low'} /></td>
