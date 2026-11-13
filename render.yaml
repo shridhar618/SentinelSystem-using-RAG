@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     envVars:
       - key: SECRET_KEY
@@ -21,9 +21,11 @@ services:
         value: "10000"
       - key: DEBUG
         value: "0"
+      # mock = offline policy mode (no key needed). For written AI answers,
+      # set AI_PROVIDER=gemini and paste a free Google AI Studio key below.
       - key: AI_PROVIDER
         value: mock
-    disk:
-      name: secureai-data
-      mountPath: /app/instance
-      sizeGB: 1
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
