@@ -17,9 +17,12 @@ from app.services.ai_service import (
 )
 from app.services.governance import (
     SUSPICIOUS_QUERY_THRESHOLD,
+    THREAT_BLOCK_SCORE,
+    adjust_threat_for_role,
     apply_governance,
     compute_query_sensitivity,
 )
+from app.services.offline_assistant import compose_offline_answer, keyword_retrieve
 from app.models.governance_case import GovernanceCase
 from app.services.permissions import permissions_for_role
 from app.services.risk_config_service import load_risk_config
@@ -35,7 +38,11 @@ _histories: dict = {}
 @chat_bp.route("/chat/status", methods=["GET"])
 @jwt_required()
 def chat_status():
-    return jsonify({"rag": rag_status(), "llm": llm_status()}), 200
+    rag, llm = rag_status(), llm_status()
+    # Without an LLM the chat still answers (offline policy mode): extractive
+    # policy excerpts + role-scoped sample data, with full governance.
+    mode = "rag_llm" if (rag["ready"] and llm["configured"]) else "offline"
+    return jsonify({"rag": rag, "llm": llm, "mode": mode, "offline_available": True}), 200
 
 
 def _get_user() -> User | None:
@@ -146,10 +153,36 @@ def chat():
     _histories[user_id].append({"role": "user", "content": query})
     contextual_query = resolve_contextual_query(_histories[user_id])
 
+    permissions = permissions_for_role(role_name)
+    # The detector is role-blind; let an authorized role make a targeted
+    # request for its own data class without being scored as an attacker.
+    threat = adjust_threat_for_role(threat, query, permissions)
+
     rag_health = rag_status()
+    llm_ready = llm_status()["configured"]
     policy_chunks = retrieve_policy_evidence(contextual_query or query, top_k=5) if rag_health["ready"] else []
-    if not rag_health["ready"]:
-        raw_response = "The policy assistant is not ready because the policy search index or its retrieval dependencies are unavailable. Please contact your administrator."
+    if not policy_chunks:
+        # No semantic index (e.g. a slim cloud deploy): keyword search over
+        # the same policy_chunks table.
+        policy_chunks = keyword_retrieve(contextual_query or query, top_k=5)
+    response_trusted = False
+    offline = None
+    # Data questions (salary, contacts, projects, "what can I access") are
+    # answered from role-scoped records, never by the LLM.
+    scoped = (
+        compose_offline_answer(contextual_query or query, role_name, permissions, policy_chunks, llm_configured=llm_ready)
+        if threat.score < THREAT_BLOCK_SCORE else None
+    )
+    if threat.score >= THREAT_BLOCK_SCORE:
+        # Don't generate anything for a request the governance layer will
+        # restrict anyway (AI Security Policy §3.2).
+        raw_response = "Request withheld: high-risk intent detected."
+        response_trusted = True
+        policy_chunks = []
+    elif not llm_ready or scoped.topic != "policy":
+        offline = scoped
+        raw_response = offline.text
+        response_trusted = True
     elif not policy_chunks:
         raw_response = "I couldn't find relevant information in the currently indexed company policy documents, so I can't provide a policy-based answer. Please contact the appropriate policy owner for clarification."
     else:
@@ -168,14 +201,28 @@ def chat():
         try:
             raw_response = get_grounded_ai_response(rag_messages, rag_system)
         except RuntimeError as exc:
-            print(f"[policy-chat] LLM unavailable: {exc}")
-            raw_response = "I found relevant policy documents, but the configured language model is unavailable. Please contact your administrator to configure or restore the LLM provider."
+            print(f"[policy-chat] LLM unavailable, using offline policy mode: {exc}")
+            offline = compose_offline_answer(contextual_query or query, role_name, permissions, policy_chunks)
+            raw_response = offline.text
+            response_trusted = True
     risk_config = load_risk_config()
     result = apply_governance(
         raw_response, query, user.role,
-        permissions=permissions_for_role(role_name),
+        permissions=permissions,
         risk_config=risk_config,
+        threat=threat,
+        response_trusted=response_trusted,
     )
+    if offline is not None:
+        if not policy_chunks or offline.topic != "policy":
+            policy_chunks = offline.sources
+        if offline.scope_limited and result.status == "allowed":
+            result.status = "filtered"
+            result.reason = offline.scope_note
+            result.recommended_action = (
+                "The answer was limited to your role's permission scope. If you need the withheld detail for your "
+                "work, ask your manager or an administrator to review your access."
+            )
     _histories[user_id].append({"role": "assistant", "content": raw_response})
     if len(_histories[user_id]) > 20:
         _histories[user_id] = _histories[user_id][-20:]

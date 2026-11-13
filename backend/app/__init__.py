@@ -241,6 +241,8 @@ def create_app():
         _seed_role_permissions()
         _seed_risk_configuration()
         _seed_investigation_questions()
+        from app.services.offline_assistant import seed_policy_text_if_empty
+        seed_policy_text_if_empty()
         _seal_audit_chain()
 
     # Phase 21/23: this is a JSON API. Without these, an unhandled exception
