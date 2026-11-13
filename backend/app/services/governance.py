@@ -70,8 +70,14 @@ PERMISSION_GATED_RULES = [
     (r"\bsalar(?:y|ies)\b",          "salary/compensation data",            "view_employee_salary"),
     (r"\bcompensation\b",            "compensation information",            "view_employee_salary"),
     (r"\bpay\s*scale\b",             "pay scale details",                   "view_employee_salary"),
+    (r"\bpayroll\b",                 "payroll data",                        "view_employee_salary"),
     (r"\bpersonal\s*data\b",         "personal data records",               "view_employee_pii"),
     (r"\bpii\b",                     "personally identifiable information", "view_employee_pii"),
+    (r"\b(?:phone|mobile|contact)\s*(?:numbers?|details|info\w*)\b", "employee contact details", "view_employee_pii"),
+    (r"\bhome\s*address(?:es)?\b",   "home address",                        "view_employee_pii"),
+    (r"\bdate\s*of\s*birth\b",       "date of birth",                       "view_employee_pii"),
+    (r"\bemployee\s*(?:records?|directory|details|personal\s*info\w*)\b", "employee records", "view_employee_pii"),
+    (r"\bpersonal\s*(?:details|information|info)\b", "personal details",   "view_employee_pii"),
 ]
 
 # INTERN_ONLY_CAUTION_RULES: kept as intern-specific for now (unchanged
@@ -197,7 +203,52 @@ _INTERN_RULE_POLICY_MAP = {
     "classified information": ["Data Privacy & Classification Policy §2.4"],
     "personal data records": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.3"],
     "personally identifiable information": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.3"],
+    "payroll data": ["Role & Access Control Policy §4.1(a)", "Data Privacy & Classification Policy §3.4(a)"],
+    "employee contact details": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
+    "home address": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
+    "date of birth": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
+    "employee records": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
+    "personal details": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
 }
+
+# Contextual threat categories (services/threat_detection.py) -> governing clauses.
+_THREAT_CATEGORY_POLICY_MAP = {
+    "credential_theft": ["AI Security & Incident Response Policy §2(c)", "Data Privacy & Classification Policy §5.1"],
+    "private_conversation_access": ["Data Privacy & Classification Policy §3.3", "Role & Access Control Policy §4.2"],
+    "database_exploitation": ["AI Security & Incident Response Policy §2(a)", "AI Security & Incident Response Policy §2(c)"],
+    "auth_bypass": ["AI Security & Incident Response Policy §2(a)", "Data Privacy & Classification Policy §5.1"],
+    "unauthorized_access": ["AI Security & Incident Response Policy §2(a)", "Role & Access Control Policy §4.2"],
+    "sensitive_data_extraction": ["AI Security & Incident Response Policy §2(c)", "AI Security & Incident Response Policy §2(d)"],
+    "privilege_escalation": ["Role & Access Control Policy §4.2", "Role & Access Control Policy §5.1"],
+    "prompt_injection": ["AI Acceptable Use Policy §4", "AI Security & Incident Response Policy §2(a)"],
+}
+
+# Which permission makes a non-bulk "sensitive data" request legitimate for a role.
+_AUTHORIZED_DATA_PATTERNS = [
+    (re.compile(r"\b(?:salar(?:y|ies)|compensation|pay\s*scale|payroll|ctc|stipend)\b", re.I), "view_employee_salary"),
+    (re.compile(r"\b(?:phone|mobile|contact|e-?mail|personal\s*(?:data|details|info\w*)|pii|employee\s*(?:records?|details|directory))\b", re.I), "view_employee_pii"),
+]
+# A question ABOUT a policy ("how are credentials handled under the privacy
+# policy?") is not a request FOR the data. Keyword rules on the query are
+# skipped for such questions unless they also contain an acquisition verb.
+_POLICY_QUESTION_RE = re.compile(
+    r"\b(?:polic(?:y|ies)|rules?|guidelines?|handled|handling|allowed|permitted|prohibited|procedures?|"
+    r"classif\w*|who\s+can|compliance)\b", re.I)
+_ACQUISITION_RE = re.compile(
+    r"\b(?:give|show|send|share|reveal|leak|dump|export|fetch|provide|list|display|print|steal|retrieve)\b"
+    r"|\btell\s+me\s+(?:the|his|her|their|\w+'s)\b|\bget\s+me\b|\b\w+'s\s+(?:password|salary|phone|address|credentials?|e-?mail)\b",
+    re.I)
+
+
+def is_policy_question(query: str) -> bool:
+    return bool(_POLICY_QUESTION_RE.search(query or "")) and not _ACQUISITION_RE.search(query or "")
+
+
+# Threat-intent score (0-100) at or above which a request is RESTRICTED.
+# Below it but >= 30 (MEDIUM) the request is answered with a caution.
+THREAT_BLOCK_SCORE = 40
+
+_BULK_RE = re.compile(r"\b(?:all|every|everyone|full|complete|entire|bulk|export|dump|download|scrape|harvest|exfiltrat\w*)\b", re.I)
 
 _LAYER2_CATEGORY_POLICY_MAP = {
     "cybersecurity threat language": ["AI Security & Incident Response Policy §2(a)"],
@@ -268,7 +319,100 @@ def _recommended_action_for(status: str, has_policy_evidence: bool = True) -> st
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def apply_governance(response: str, query: str, role: str, permissions: Optional[list] = None, risk_config: Optional[dict] = None) -> FilterResult:
+def adjust_threat_for_role(threat, query: str, permissions: list):
+    """Role-aware threat scoring. The threat detector is role-blind, so a
+    targeted, non-bulk request for data the requester's role IS authorized
+    to see (e.g. HR asking for one employee's salary) would otherwise score
+    the same as an Intern asking for it. That case is dampened; bulk
+    extraction stays high for everyone (AI Security Policy §2(c))."""
+    if threat is None or not threat.categories:
+        return threat
+    if set(threat.categories) != {"sensitive_data_extraction"} or _BULK_RE.search(query or ""):
+        return threat
+    needed = [perm for rx, perm in _AUTHORIZED_DATA_PATTERNS if rx.search(query or "")]
+    if not needed or not all(perm in (permissions or []) for perm in needed):
+        return threat
+    from dataclasses import replace
+    from app.services.threat_detection import score_to_level
+
+    score = int(round(threat.score * 0.3))
+    return replace(
+        threat,
+        score=score,
+        level=score_to_level(score),
+        signals=[*threat.signals, "Requester's role is authorized for this data class (targeted, non-bulk request)"],
+    )
+
+
+def _apply_threat(result: FilterResult, threat, config) -> FilterResult:
+    """Fold the contextual intent assessment into the decision: HIGH/CRITICAL
+    intent is RESTRICTED (AI Security Policy §3.2), MEDIUM raises risk and
+    adds a caution, LOW only contributes its score."""
+    if threat is None or threat.score <= 0:
+        return result
+    threat_risk = round(threat.score / 100, 3)
+    labels = [f"threat: {_threat_label(c)}" for c in threat.categories]
+    signal_note = f"Intent analysis: {threat.score}/100 ({threat.level})" + (
+        f" - {'; '.join(threat.signals[:3])}" if threat.signals else ""
+    )
+    result.validator_notes = [*result.validator_notes, signal_note]
+    for category in threat.categories:
+        for citation in _THREAT_CATEGORY_POLICY_MAP.get(category, []):
+            if citation not in result.policy_evidence:
+                result.policy_evidence.append(citation)
+
+    if threat.score >= THREAT_BLOCK_SCORE:
+        result.risk_score = max(result.risk_score, threat_risk, 0.75)
+        result.risk_level = "high"
+        for label in labels:
+            if label not in result.triggered_rules:
+                result.triggered_rules.append(label)
+        if result.status != "blocked":
+            categories = ", ".join(_threat_label(c) for c in threat.categories) or "malicious intent"
+            explanation = (
+                f"This request is blocked because it shows high-risk intent ({threat.score}/100): {categories}. "
+                "A single high-risk request is restricted by default and logged as a security event "
+                "(AI Security & Incident Response Policy §3.2)."
+            )
+            guidance = (
+                "Requests aimed at attacking systems, bypassing controls, or obtaining other people's data or "
+                "credentials are not permitted for any role. If this is legitimate security work, contact the "
+                "Governance Office."
+            )
+            result.status = "blocked"
+            result.filtered_response = (
+                "Alert: Request blocked by SecureAI policy.\n"
+                f"Why it was blocked: {explanation}\n"
+                f"What to do: {guidance}"
+            )
+            result.reason = f"{explanation} {guidance}"
+        return result
+
+    if threat_risk > result.risk_score:
+        result.risk_score = threat_risk
+        result.risk_level = _classify_risk(threat_risk, config)
+    if threat.level == "medium" and result.status != "blocked":
+        for label in labels:
+            if label not in result.triggered_rules:
+                result.triggered_rules.append(label)
+        result.reason = result.reason or (
+            f"Caution: this request contains possible risk signals ({', '.join(_threat_label(c) for c in threat.categories) or 'attack vocabulary'}). "
+            "It was answered, but it has been logged and counts toward your cumulative risk."
+        )
+        result.filtered_response = (
+            "Caution: this request contains possible risk signals and has been logged for review.\n\n"
+            + result.filtered_response
+        )
+    return result
+
+
+def _threat_label(category: str) -> str:
+    from app.services.threat_detection import CATEGORY_LABELS
+
+    return CATEGORY_LABELS.get(category, category)
+
+
+def apply_governance(response: str, query: str, role: str, permissions: Optional[list] = None, risk_config: Optional[dict] = None, threat=None, response_trusted: bool = False) -> FilterResult:
     """
     permissions: the requester's effective permission list (see
     app.services.permissions.permissions_for_role). If not supplied, this
@@ -288,27 +432,42 @@ def apply_governance(response: str, query: str, role: str, permissions: Optional
         permissions = permissions_for_role(role)
     config = {**DEFAULT_RISK_CONFIG, **(risk_config or {})}
 
-    risk_score = _compute_risk_score(query, response, config)
+    # response_trusted: the response was composed by SecureAI itself from
+    # vetted policy text / scoped sample data (offline mode), so keyword
+    # rules evaluate the user's request only -- otherwise a policy excerpt
+    # that merely *mentions* "passwords" would block an innocent question.
+    scan_response = "" if response_trusted else response
+
+    risk_score = _compute_risk_score(query, scan_response, config)
     risk_level = _classify_risk(risk_score, config)
-    validator_notes = _layer2_validator(response, query)
+    validator_notes = _layer2_validator(scan_response, query)
 
     if validator_notes and risk_level != "high":
         risk_score = min(risk_score + 0.25, 1.0)
         risk_level = _classify_risk(risk_score, config)
 
-    result = _filter_by_permissions(query, response, role, permissions, risk_score, risk_level)
+    policy_question = is_policy_question(query)
+    result = _filter_by_permissions(query, scan_response, role, permissions, risk_score, risk_level,
+                                    policy_question=policy_question)
+    if policy_question and result.status == "allowed" and _detect_universal_blocks(query, "") + _detect_permission_gated_blocks(query, ""):
+        validator_notes.append("Question is about policy on a restricted topic; answered with policy text only, no data disclosed.")
+    if result.status == "allowed":
+        result.filtered_response = response
 
     if role == "hr":
         # HR-specific field masking runs in addition to (not instead of)
         # the permission-based blocking above -- HR holds view_employee_pii
         # and view_employee_salary, so it won't be blocked by those rules,
         # but inline PII that slips into a response text still gets masked.
-        hr_result = _filter_hr(result.filtered_response, result.risk_score, result.risk_level)
+        # Fields the request actually asked for are not masked (Data
+        # Privacy Policy §4.2: masking is per-field relevance).
+        hr_result = _filter_hr(result.filtered_response, result.risk_score, result.risk_level, query=query)
         if hr_result.status == "filtered" and result.status == "allowed":
             hr_result.policy_evidence = result.policy_evidence + hr_result.policy_evidence
             result = hr_result
 
     result.validator_notes = validator_notes
+    result = _apply_threat(result, threat, config)
     result.is_high_risk_alert = (result.risk_level == "high")
     # Merge any policy evidence already set by the role filter (e.g. intern
     # blocklist citations) with evidence derived from Layer-2 validator hits,
@@ -334,20 +493,21 @@ def compute_query_sensitivity(query: str) -> bool:
 # Layer 1 — Role/permission filters
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _filter_by_permissions(query, response, role, permissions, risk_score, risk_level):
+def _filter_by_permissions(query, response, role, permissions, risk_score, risk_level, policy_question=False):
     """Applies UNIVERSAL_BLOCKED_RULES (every role) and PERMISSION_GATED_RULES
     (only roles lacking the relevant permission) to any role -- this is what
     replaced the old "only intern gets filtered" behavior. Intern additionally
     gets INTERN_ONLY_CAUTION_RULES, preserving its prior (unchanged) behavior
     for that bucket.
     """
-    triggered = _detect_universal_blocks(query, response)
+    scan_query = "" if policy_question else query
+    triggered = _detect_universal_blocks(scan_query, response)
     triggered += [
-        label for label in _detect_permission_gated_blocks(query, response)
+        label for label in _detect_permission_gated_blocks(scan_query, response)
         if _permission_for_label(label) not in permissions
     ]
     if role == "intern":
-        triggered += _detect_intern_caution_blocks(query, response)
+        triggered += _detect_intern_caution_blocks(scan_query, response)
 
     if triggered:
         joined = ", ".join(triggered)
@@ -357,7 +517,7 @@ def _filter_by_permissions(query, response, role, permissions, risk_score, risk_
             "or regulated personal data of this kind."
         )
         guidance = (
-            "Why you cannot ask this: your current role's permissions do not cover that data. "
+            "Your current role's permissions do not cover that data. "
             "If you need legitimate access, contact HR or an admin, or ask for a high-level policy summary instead."
         )
         return FilterResult(
@@ -382,10 +542,23 @@ def _filter_by_permissions(query, response, role, permissions, risk_score, risk_
     )
 
 
-def _filter_hr(response, risk_score, risk_level):
+_HR_RELEVANT_FIELDS = [
+    (re.compile(r"\b(?:salar(?:y|ies)|compensation|pay\s*scale|payroll|ctc|stipend)\b", re.I), {"salary/financial figure"}),
+    (re.compile(r"\b(?:phone|mobile|contact)\b", re.I), {"phone number"}),
+    (re.compile(r"\b(?:e-?mail|contact)\b", re.I), {"email address"}),
+]
+
+
+def _filter_hr(response, risk_score, risk_level, query=""):
+    relevant = set()
+    for rx, labels in _HR_RELEVANT_FIELDS:
+        if rx.search(query or ""):
+            relevant |= labels
     masked = response
     triggered = []
     for pattern, replacement, label in HR_MASKED_RULES:
+        if label in relevant:
+            continue
         new_masked, count = re.subn(pattern, replacement, masked, flags=re.IGNORECASE)
         if count > 0:
             triggered.append(label)
