@@ -323,6 +323,8 @@ def _seed_demo_users():
         {"username": "admin", "email": "admin@secureai.com", "password": "admin123", "role": "admin", "login_code": "ADMINCODE1"},
         {"username": "hr_jane", "email": "hr@secureai.com", "password": "hr123", "role": "hr", "login_code": "HRCODE0001"},
         {"username": "intern_bob", "email": "intern@secureai.com", "password": "intern123", "role": "intern", "login_code": "INTCODE001"},
+        {"username": "de_arjun", "email": "data.engineer@secureai.com", "password": "dataeng123", "role": "data engineer", "login_code": "DENGCODE01"},
+        {"username": "da_meera", "email": "data.analyst@secureai.com", "password": "analyst123", "role": "data analyst", "login_code": "DANACODE01"},
     ]
 
     for u in demo_users:

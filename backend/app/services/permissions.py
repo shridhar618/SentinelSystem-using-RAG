@@ -17,6 +17,9 @@ PERMISSION_CATALOG = [
     ("view_project_information_full", "project", "View full technical/project information"),
     ("view_employee_pii", "hr_data", "View authorized employee personal information"),
     ("view_employee_salary", "hr_data", "View employee compensation/salary information"),
+    # Data warehouse (Data Warehouse and Analytics Access Policy §4.2/§4.3).
+    ("view_warehouse_masked_data", "data_warehouse", "View masked analytics tables in the data warehouse"),
+    ("view_warehouse_raw_data", "data_warehouse", "View raw transaction data in the data warehouse"),
     ("use_ai_assistant", "ai", "Use the SecureAI governance assistant"),
     ("ai_governance_admin", "governance", "View audit logs, risk events, and governance cases"),
     ("manage_policies", "governance", "Upload, re-index, enable/disable policy documents"),
@@ -58,6 +61,22 @@ ROLE_PERMISSION_MAP = {
         "view_public_information",
         "view_project_information_full",
         "use_ai_assistant",
+    ],
+    # Access Control Policy §4.8: the only non-Admin role with raw
+    # transaction data.
+    "Data Engineer": [
+        "view_public_information",
+        "view_project_information_full",
+        "use_ai_assistant",
+        "view_warehouse_masked_data",
+        "view_warehouse_raw_data",
+    ],
+    # Access Control Policy §4.9: masked analytics tables only.
+    "Data Analyst": [
+        "view_public_information",
+        "view_project_information_limited",
+        "use_ai_assistant",
+        "view_warehouse_masked_data",
     ],
     "Admin": [name for name, _category, _description in PERMISSION_CATALOG],
 }
