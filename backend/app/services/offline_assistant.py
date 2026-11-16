@@ -149,7 +149,10 @@ def _load_chunk_index():
         toks = _tokens(content)
         if len(toks) < 8:
             continue
-        tf = Counter(toks)
+        # Title field: "the AI acceptable use policy" should rank that
+        # policy's own clauses above clauses elsewhere that merely cite it.
+        title = re.sub(r"\.(md|pdf|txt)$", "", doc_name or "").replace("_", " ")
+        tf = Counter(toks + _tokens(title) + _tokens(section or ""))
         df.update(tf.keys())
         docs.append({
             "id": chunk_id, "content": content, "section": section, "page": page,
