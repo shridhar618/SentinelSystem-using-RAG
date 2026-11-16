@@ -1,0 +1,9 @@
+Indexed AI RMF Playbook.pdf: 570 chunks
+Indexed NIST AI 100-1.pdf: 176 chunks
+Indexed NIST.AI.600-1.pdf: 260 chunks
+Indexed AI_Acceptable_Use_Policy.md: 10 chunks
+Indexed AI_Security_and_Incident_Response_Policy.md: 11 chunks
+Indexed Data_Privacy_and_Classification_Policy.md: 10 chunks
+Indexed Role_and_Access_Control_Policy.md: 12 chunks
+
+Ingestion complete. Qdrant collection 'secureai_policy_chunks' at /Users/shridharbhat/Desktop/Project Presentation/SecureAI/backend/qdrant_data
