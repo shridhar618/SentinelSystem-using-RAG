@@ -1,0 +1,63 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.18, pytest-8.3.2, pluggy-1.7.0
+rootdir: /Users/shridharbhat/Desktop/Project Presentation/SecureAI/backend
+plugins: anyio-4.16.0
+collected 182 items
+
+tests/test_ai_tasks.py Timeout (0:01:00)!
+Thread 0x00000002035fd300 (most recent call first):
+  File "<frozen importlib._bootstrap_external>", line 1131 in get_data
+  File "<frozen importlib._bootstrap_external>", line 1032 in get_code
+  File "<frozen importlib._bootstrap_external>", line 936 in exec_module
+  File "<frozen importlib._bootstrap>", line 690 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1147 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 241 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1126 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176 in _find_and_load
+  File "/Users/shridharbhat/Desktop/Project Presentation/SecureAI/backend/app/routes/admin.py", line 13 in <module>
+  File "<frozen importlib._bootstrap>", line 241 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 940 in exec_module
+  File "<frozen importlib._bootstrap>", line 690 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1147 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176 in _find_and_load
+  File "/Users/shridharbhat/Desktop/Project Presentation/SecureAI/backend/app/__init__.py", line 121 in create_app
+  File "/Users/shridharbhat/Downloads/Projects/SecureAI/backend/tests/conftest.py", line 23 in app
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 890 in call_fixture_func
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 1139 in pytest_fixture_setup
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 1090 in execute
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 616 in _get_active_fixturedef
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 531 in getfixturevalue
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/fixtures.py", line 696 in _fillfixtures
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/python.py", line 1630 in setup
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 514 in setup
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 160 in pytest_runtest_setup
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 242 in <lambda>
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 341 in from_call
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 241 in call_and_report
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 126 in runtestprotocol
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/runner.py", line 113 in pytest_runtest_protocol
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/main.py", line 362 in pytest_runtestloop
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/main.py", line 337 in _main
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/main.py", line 283 in wrap_session
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/main.py", line 330 in pytest_cmdline_main
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/config/__init__.py", line 175 in main
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/_pytest/config/__init__.py", line 201 in console_main
+  File "/opt/anaconda3/envs/secureai/lib/python3.11/site-packages/pytest/__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main
