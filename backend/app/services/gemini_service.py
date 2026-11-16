@@ -318,7 +318,11 @@ def _messages_to_prompt(messages: list[dict]) -> str:
         content = str(message.get("content", "")).strip()
         if not content:
             continue
-        if role == "assistant":
+        if role == "system":
+            # Context such as retrieved RAG policy excerpts. Gemini takes only
+            # one system_instruction, so it is passed in-line instead of dropped.
+            prompt_lines.append(f"Context:\n{content}\n")
+        elif role == "assistant":
             prompt_lines.append(f"Assistant: {content}")
         elif role == "user":
             prompt_lines.append(f"User: {content}")
