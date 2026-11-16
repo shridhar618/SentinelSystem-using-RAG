@@ -11,6 +11,8 @@ const DEMO_CREDS = [
   { role: 'admin', username: 'admin', loginCode: 'ADMINCODE1' },
   { role: 'hr', username: 'hr_jane', loginCode: 'HRCODE0001' },
   { role: 'intern', username: 'intern_bob', loginCode: 'INTCODE001' },
+  { role: 'data engineer', username: 'de_arjun', loginCode: 'DENGCODE01' },
+  { role: 'data analyst', username: 'da_meera', loginCode: 'DANACODE01' },
 ]
 
 const LINES = [

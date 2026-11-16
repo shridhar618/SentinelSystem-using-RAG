@@ -17,17 +17,19 @@ Admin (provisioning). The permission model applies to everyone.
 | Frontend | `AdminCreateUserPage.jsx`, `ProtectedRoute` in `App.jsx`, `utils/roles.js` |
 
 ## How it works
-**Role catalog.** 27 roles (Admin, HR, Intern, Manager, Software Engineer, Supervisor, Developer, QA Engineer, …) are seeded at startup. Seven of them form the governance demo set with explicit permission mappings:
+**Role catalog.** 29 roles (Admin, HR, Intern, Manager, Software Engineer, Supervisor, Data Engineer, Data Analyst, Developer, QA Engineer, …) are seeded at startup. Nine of them form the governance demo set with explicit permission mappings (the same matrix is Access Control Policy §4.13):
 
-| Permission | Guest | Intern | Software Eng. | HR | Manager | Supervisor | Admin |
-|---|---|---|---|---|---|---|---|
-| view_public_information | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| view_project_information_limited | | ✓ | | ✓ | | | ✓ |
-| view_project_information_full | | | ✓ | | ✓ | ✓ | ✓ |
-| view_employee_pii | | | | ✓ | ✓ | | ✓ |
-| view_employee_salary | | | | ✓ | | | ✓ |
-| use_ai_assistant | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ai_governance_admin, manage_policies, manage_risk_configuration, manage_users, system_configuration_admin | | | | | | | ✓ |
+| Permission | Guest | Intern | Software Eng. | HR | Manager | Supervisor | Data Engineer | Data Analyst | Admin |
+|---|---|---|---|---|---|---|---|---|---|
+| view_public_information | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| view_project_information_limited | | ✓ | | ✓ | | | | ✓ | ✓ |
+| view_project_information_full | | | ✓ | | ✓ | ✓ | ✓ | | ✓ |
+| view_employee_pii | | | | ✓ | ✓ | | | | ✓ |
+| view_employee_salary | | | | ✓ | | | | | ✓ |
+| view_warehouse_masked_data | | | | | | | ✓ | ✓ | ✓ |
+| view_warehouse_raw_data | | | | | | | ✓ | | ✓ |
+| use_ai_assistant | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| ai_governance_admin, manage_policies, manage_risk_configuration, manage_users, system_configuration_admin | | | | | | | | | ✓ |
 
 Any other catalog role receives a default employee set (`view_public_information`, `view_project_information_limited`, `use_ai_assistant`).
 

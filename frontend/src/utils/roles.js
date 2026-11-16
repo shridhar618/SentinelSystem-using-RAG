@@ -28,6 +28,9 @@ export const ROLE_CATALOG = [
   { value: 'guest', label: 'Guest', category: 'General', color: 'text-slate-400', badge: 'GUEST', desc: 'Public information only' },
   { value: 'software engineer', label: 'Software Engineer', category: 'Engineering', color: 'text-cyan-400', badge: 'SW ENGINEER', desc: 'Full technical/project access' },
   { value: 'supervisor', label: 'Supervisor', category: 'Leadership', color: 'text-emerald-200', badge: 'SUPERVISOR', desc: 'Team-level oversight access' },
+  // Data warehouse roles (Data Warehouse and Analytics Access Policy, EV-SEC-004).
+  { value: 'data engineer', label: 'Data Engineer', category: 'Data', color: 'text-teal-400', badge: 'DATA ENG', desc: 'Raw and masked warehouse data' },
+  { value: 'data analyst', label: 'Data Analyst', category: 'Data', color: 'text-blue-400', badge: 'DATA ANALYST', desc: 'Masked analytics tables only' },
 ]
 
 const ROLE_MAP = Object.fromEntries(ROLE_CATALOG.map(role => [role.value, role]))
