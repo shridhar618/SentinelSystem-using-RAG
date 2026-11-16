@@ -54,11 +54,21 @@ KNOWN_DOCUMENTS = {
     "NIST Privacy Framework.pdf": ("Privacy", "external_framework"),
     "OWASP GenAI Top 10.pdf": ("Security", "external_framework"),
     "India DPDP Act 2023.pdf": ("Privacy", "external_framework"),
-    "AI_Acceptable_Use_Policy.md": ("Acceptable Use", "organization"),
-    "Role_and_Access_Control_Policy.md": ("Access Control", "organization"),
-    "Data_Privacy_and_Classification_Policy.md": ("Privacy", "organization"),
-    "AI_Security_and_Incident_Response_Policy.md": ("Security", "organization"),
+    # Evolish Technologies Pvt. Ltd. internal policy set (EV-SEC-001..008).
+    # The four policies these replaced are kept, un-ingested, in
+    # policy_corpus/organization/_old/.
+    "Information_Security_Policy.md": ("Security", "organization"),
+    "Data_Classification_and_Handling_Policy.md": ("Privacy", "organization"),
+    "Access_Control_Policy.md": ("Access Control", "organization"),
+    "Data_Warehouse_and_Analytics_Access_Policy.md": ("Access Control", "organization"),
+    "Acceptable_Use_of_AI_Tools_Policy.md": ("Acceptable Use", "organization"),
+    "Data_Privacy_Policy.md": ("Privacy", "organization"),
+    "HR_and_Employee_Records_Policy.md": ("Privacy", "organization"),
+    "Incident_Response_and_Security_Monitoring_Policy.md": ("Security", "organization"),
 }
+
+# Files in the organisation folder that are not policies.
+NON_POLICY_FILES = {"README.md"}
 
 
 def _content_hash(text: str) -> str:
@@ -264,7 +274,11 @@ def ingest(reset: bool = False):
         client = get_qdrant_client()
         ensure_collection(client, vector_size)
 
-        all_files = sorted(EXTERNAL_DIR.glob("*.pdf")) + sorted(ORG_DIR.glob("*.md"))
+        # Non-recursive on purpose: organization/_old/ is an archive and is
+        # not ingested.
+        all_files = sorted(EXTERNAL_DIR.glob("*.pdf")) + sorted(
+            path for path in ORG_DIR.glob("*.md") if path.name not in NON_POLICY_FILES
+        )
         if not all_files:
             print(f"No documents found under {CORPUS_ROOT}. Nothing to ingest.")
             return

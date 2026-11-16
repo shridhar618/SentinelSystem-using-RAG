@@ -16,7 +16,7 @@ Authorization is still decided by the governance engine
 (services/governance.py) -- e.g. an Intern asking for salaries is blocked
 there before this text is ever shown. This module additionally scopes what
 it *writes* to the caller's permissions (limited vs. full project view,
-per-field relevance for PII per Data Privacy Policy §3.3/§4.2), so a
+per-field relevance per Data Classification and Handling Policy §4.13), so a
 permitted role never receives more than its permission covers.
 """
 
@@ -36,7 +36,7 @@ SAMPLE_LABEL = "Sample company data (demo)"
 PUBLIC_INFO = {
     "office_hours": "Office hours are 9:30 AM - 6:30 PM, Monday to Friday. Hybrid staff are expected on-site Tuesday to Thursday.",
     "holidays": "The 2026 holiday calendar has 12 company holidays; the full list is published on the HR portal.",
-    "support": "IT support is available via the helpdesk portal or ext. 4040. Security incidents go to the Governance Office.",
+    "support": "IT support is available via the helpdesk portal or ext. 4040. Security incidents go to the Security team.",
 }
 
 PROJECTS = {
@@ -233,18 +233,18 @@ def _answer_salary(query, role_name, permissions) -> OfflineAnswer:
         # Normally unreachable: governance blocks this before display.
         return OfflineAnswer(
             text=f"Compensation data is restricted. Your role ({role_name}) does not hold view_employee_salary "
-                 "(Role & Access Control Policy §4.1a: only HR and Admin may view compensation).",
-            sources=[{"document_name": "Role_and_Access_Control_Policy.md", "section": "4. Principle of Least Privilege"}],
+                 "(HR and Employee Records Policy §4.2: only HR and Admin may view salary records).",
+            sources=[{"document_name": "HR_and_Employee_Records_Policy.md", "section": "4.2 Salary and compensation records"}],
             topic="salary",
         )
     people = _mentioned_employees(query) or EMPLOYEES
     lines = [f"Compensation ({SAMPLE_LABEL}) - shown because your role ({role_name}) holds view_employee_salary:"]
     lines += [f"• {e['name']} ({e['title']}): {e['salary']}" for e in people]
-    lines.append("Per Data Privacy Policy §3.4(a), use these figures only for an authorized HR/payroll purpose.")
+    lines.append("Per HR and Employee Records Policy §4.2, use these figures only for an authorised HR or payroll purpose.")
     return OfflineAnswer(
         text="\n".join(lines),
         sources=[{"document_name": SAMPLE_LABEL, "section": "Payroll"},
-                 {"document_name": "Data_Privacy_and_Classification_Policy.md", "section": "3. Handling Requirements by Classification"}],
+                 {"document_name": "HR_and_Employee_Records_Policy.md", "section": "4.2 Salary and compensation records"}],
         topic="salary",
     )
 
@@ -253,19 +253,19 @@ def _answer_pii(query, role_name, permissions) -> OfflineAnswer:
     if "view_employee_pii" not in permissions:
         return OfflineAnswer(
             text=f"Employee personal information is Confidential. Your role ({role_name}) does not hold view_employee_pii "
-                 "(Role & Access Control Policy §4.1b: only HR, Manager and Admin may view employee PII).",
-            sources=[{"document_name": "Role_and_Access_Control_Policy.md", "section": "4. Principle of Least Privilege"}],
+                 "(HR and Employee Records Policy §4.3: only HR, Manager and Admin may view employee personal records).",
+            sources=[{"document_name": "HR_and_Employee_Records_Policy.md", "section": "4.3 Employee personal records"}],
             topic="pii",
         )
     q = query.lower()
     if re.search(r"home\s*address|date\s*of\s*birth", q):
         return OfflineAnswer(
-            text="Home addresses and dates of birth are not available through the AI assistant. Request them through the HRIS "
-                 "with a documented purpose (Data Privacy Policy §3.3, §4.1).",
-            sources=[{"document_name": "Data_Privacy_and_Classification_Policy.md", "section": "4. Response Masking"}],
+            text="Home addresses and dates of birth are not available through the AI assistant. Request them through the HRMS "
+                 "with a documented purpose (HR and Employee Records Policy §4.6).",
+            sources=[{"document_name": "HR_and_Employee_Records_Policy.md", "section": "4.6 Home address and date of birth"}],
             topic="pii",
         )
-    # Per-field relevance (Data Privacy Policy §3.3 / §4.2): return only what was asked.
+    # Per-field relevance (Data Classification and Handling Policy §4.13): return only what was asked.
     fields = []
     if re.search(r"phone|mobile|contact", q):
         fields.append(("work_phone", "work phone"))
@@ -288,7 +288,7 @@ def _answer_pii(query, role_name, permissions) -> OfflineAnswer:
     return OfflineAnswer(
         text="\n".join(lines),
         sources=[{"document_name": SAMPLE_LABEL, "section": "Employee directory"},
-                 {"document_name": "Data_Privacy_and_Classification_Policy.md", "section": "4. Response Masking"}],
+                 {"document_name": "Data_Classification_and_Handling_Policy.md", "section": "4.13 Minimum necessary disclosure"}],
         topic="pii",
     )
 
@@ -299,7 +299,7 @@ def _answer_project(query, role_name, permissions) -> OfflineAnswer:
     if not limited:
         return OfflineAnswer(
             text=f"Project information is Internal. Your role ({role_name}) only has public-information access.",
-            sources=[{"document_name": "Data_Privacy_and_Classification_Policy.md", "section": "3. Handling Requirements by Classification"}],
+            sources=[{"document_name": "Data_Classification_and_Handling_Policy.md", "section": "4.3 Internal information"}],
             topic="project",
         )
     lines = []
@@ -321,7 +321,7 @@ def _answer_project(query, role_name, permissions) -> OfflineAnswer:
     return OfflineAnswer(
         text="\n".join(lines),
         sources=[{"document_name": SAMPLE_LABEL, "section": "Project register"},
-                 {"document_name": "Data_Privacy_and_Classification_Policy.md", "section": "3. Handling Requirements by Classification"}],
+                 {"document_name": "Data_Classification_and_Handling_Policy.md", "section": "4.3 Internal information"}],
         scope_limited=scope_limited,
         scope_note=scope_note if scope_limited else None,
         topic="project",
@@ -369,8 +369,8 @@ def compose_offline_answer(query: str, role_name: str, permissions: list, policy
     if _SELF_ACCESS_RE.search(q):
         answer = OfflineAnswer(
             text="\n".join(_role_scope_lines(role_name, permissions))
-            + "\nSource: Role & Access Control Policy §3 (role definitions).",
-            sources=[{"document_name": "Role_and_Access_Control_Policy.md", "section": "3. Role Definitions"}],
+            + "\nSource: Access Control Policy §4.13 (role-to-data access matrix).",
+            sources=[{"document_name": "Access_Control_Policy.md", "section": "4.13 Role-to-data access matrix"}],
             topic="access",
         )
     elif is_policy_question(q):
@@ -395,11 +395,17 @@ def compose_offline_answer(query: str, role_name: str, permissions: list, policy
 
 # ── Startup seeding of policy text (no ML dependencies) ──────────────────────
 
+# The eight Evolish Technologies Pvt. Ltd. policies (EV-SEC-001..008). Keep in
+# step with KNOWN_DOCUMENTS in scripts/ingest_policies.py.
 _ORG_POLICY_CATEGORIES = {
-    "AI_Acceptable_Use_Policy.md": "Acceptable Use",
-    "Role_and_Access_Control_Policy.md": "Access Control",
-    "Data_Privacy_and_Classification_Policy.md": "Privacy",
-    "AI_Security_and_Incident_Response_Policy.md": "Security",
+    "Information_Security_Policy.md": "Security",
+    "Data_Classification_and_Handling_Policy.md": "Privacy",
+    "Access_Control_Policy.md": "Access Control",
+    "Data_Warehouse_and_Analytics_Access_Policy.md": "Access Control",
+    "Acceptable_Use_of_AI_Tools_Policy.md": "Acceptable Use",
+    "Data_Privacy_Policy.md": "Privacy",
+    "HR_and_Employee_Records_Policy.md": "Privacy",
+    "Incident_Response_and_Security_Monitoring_Policy.md": "Security",
 }
 _SEED_CHUNK_SIZE = 800
 _SEED_CHUNK_OVERLAP = 120

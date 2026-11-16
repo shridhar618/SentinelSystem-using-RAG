@@ -175,7 +175,7 @@ def chat():
     )
     if threat.score >= THREAT_BLOCK_SCORE:
         # Don't generate anything for a request the governance layer will
-        # restrict anyway (AI Security Policy §3.2).
+        # restrict anyway (Incident Response and Security Monitoring Policy §4.5).
         raw_response = "Request withheld: high-risk intent detected."
         response_trusted = True
         policy_chunks = []

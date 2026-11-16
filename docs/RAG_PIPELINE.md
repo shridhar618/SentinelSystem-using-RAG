@@ -22,7 +22,7 @@ SQLite is the source of truth for chunk text and citation metadata; Qdrant store
 
 ## Corpus (`backend/policy_corpus/`)
 - `external_frameworks/`: NIST AI 100-1 (AI RMF 1.0), NIST AI 600-1 (Generative AI Profile), AI RMF Playbook (supplied PDFs). **Not included:** NIST Privacy Framework, OWASP GenAI/LLM Top 10, India DPDP Act 2023. Drop the PDFs in this folder using the names in `KNOWN_DOCUMENTS` (`NIST Privacy Framework.pdf`, `OWASP GenAI Top 10.pdf`, `India DPDP Act 2023.pdf`) and re-run ingestion.
-- `organization/`: four organization policies written for this project (AI Acceptable Use, Role & Access Control, Data Privacy & Classification, AI Security & Incident Response), with numbered clauses so citations are clause-level.
+- `organization/`: the eight internal policies of Evolish Technologies Pvt. Ltd., a fictional FinTech (EV-SEC-001 to EV-SEC-008: Information Security, Data Classification and Handling, Access Control, Data Warehouse and Analytics Access, Acceptable Use of AI Tools, Data Privacy, HR and Employee Records, Incident Response and Security Monitoring). Every rule is its own numbered `## ` heading so citations are clause-level. `README.md` and the `_old/` archive of the previous four policies are not ingested. Review copies, including a single master manual in PDF and Word, are in `backend/policies_pdf/` (`scripts/export_policies_pdf.py`).
 
 Measured while building: 7 documents chunk to ~1,300 chunks with zero extraction failures (pypdf).
 
