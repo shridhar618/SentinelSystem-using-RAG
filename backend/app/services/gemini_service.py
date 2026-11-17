@@ -1,9 +1,37 @@
 import json
 import logging
 import os
+import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Total time budget (seconds) for one Gemini answer, across every candidate
+# model. The browser gives up on /api/chat after 30s, so this must stay
+# below that: when Gemini is slow or rate-limited the chat falls back to
+# offline policy mode instead of failing with a connection error.
+DEFAULT_GEMINI_TIMEOUT_SECONDS = 20.0
+# A model attempt with less time left than this is skipped.
+_MIN_ATTEMPT_SECONDS = 3.0
+
+
+def _time_budget() -> float:
+    try:
+        return max(_MIN_ATTEMPT_SECONDS, float(os.getenv("GEMINI_TIMEOUT_SECONDS", DEFAULT_GEMINI_TIMEOUT_SECONDS)))
+    except ValueError:
+        return DEFAULT_GEMINI_TIMEOUT_SECONDS
+
+
+def _request_options(deadline: float) -> dict | None:
+    """Per-call options bounded by ``deadline``; None when time is up.
+
+    retry=None turns off the SDK's own exponential-backoff retries, which on
+    a 429/503 can keep one call going for minutes.
+    """
+    remaining = deadline - time.monotonic()
+    if remaining < _MIN_ATTEMPT_SECONDS:
+        return None
+    return {"timeout": remaining, "retry": None}
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 DEFAULT_FALLBACK_MODELS = [
@@ -103,7 +131,12 @@ def _generate_text_with_system_prompt(
     genai.configure(api_key=api_key)
 
     last_error = None
+    deadline = time.monotonic() + _time_budget()
     for candidate_model in _candidate_models(model_name):
+        options = _request_options(deadline)
+        if options is None:
+            last_error = last_error or GeminiServiceError("Gemini time budget exhausted")
+            break
         try:
             logger.info("Gemini text request using model '%s'", candidate_model)
             model = genai.GenerativeModel(
@@ -116,6 +149,7 @@ def _generate_text_with_system_prompt(
                     "temperature": temperature,
                     "max_output_tokens": max_output_tokens,
                 },
+                request_options=options,
             )
             text = _extract_text(response)
             if not text:
@@ -144,7 +178,12 @@ def _generate_json_with_system_prompt(
     genai.configure(api_key=api_key)
 
     last_error = None
+    deadline = time.monotonic() + _time_budget()
     for candidate_model in _candidate_models(model_name):
+        options = _request_options(deadline)
+        if options is None:
+            last_error = last_error or GeminiServiceError("Gemini time budget exhausted")
+            break
         try:
             logger.info("Gemini JSON request using model '%s'", candidate_model)
             model = genai.GenerativeModel(
@@ -159,6 +198,7 @@ def _generate_json_with_system_prompt(
                         "max_output_tokens": max_output_tokens,
                         "response_mime_type": "application/json",
                     },
+                    request_options=options,
                 )
                 return _parse_json_response(response)
             except GeminiServiceError as exc:
@@ -167,12 +207,16 @@ def _generate_json_with_system_prompt(
                     candidate_model,
                     exc,
                 )
+                retry_options = _request_options(deadline)
+                if retry_options is None:
+                    raise
                 response = model.generate_content(
                     prompt,
                     generation_config={
                         "temperature": temperature,
                         "max_output_tokens": max_output_tokens,
                     },
+                    request_options=retry_options,
                 )
                 return _parse_json_response(response)
         except GeminiServiceError as exc:
