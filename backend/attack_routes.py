@@ -11,8 +11,8 @@ _attack_state = {
 
 
 def _require_admin():
-    """Attack Simulation is an admin-only security-lab tool (Role & Access
-    Control Policy §3.7 -- governance/system administration is Admin's
+    """Attack Simulation is an admin-only security-lab tool (Access
+    Control Policy §4.10 -- governance/system administration is Admin's
     domain). Previously these three routes had NO authentication at all --
     any anonymous request could trigger the "simulation" and see its
     canned output. The output itself is static fake data (never real

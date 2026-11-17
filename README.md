@@ -62,6 +62,8 @@ exact public origin if the frontend is later split into a separate service.
 | Admin | admin | ADMINCODE1 | admin123 |
 | HR | hr_jane | HRCODE0001 | hr123 |
 | Intern | intern_bob | INTCODE001 | intern123 |
+| Data Engineer | de_arjun | DENGCODE01 | dataeng123 |
+| Data Analyst | da_meera | DANACODE01 | analyst123 |
 
 Demo credentials are for local use only. Create further roles (Manager, Software Engineer, Supervisor, Guest…) in **Admin → User Access**.
 

@@ -5,3 +5,9 @@ instance/
 *.pyc
 *.pyo
 *.pyd
+venv/
+venv311/
+qdrant_data/
+.env.bak
+**/__pycache__/
+.pytest_cache/
