@@ -28,6 +28,10 @@ ROLE_CATALOG = [
     "Guest",
     "Software Engineer",
     "Supervisor",
+    # Data warehouse roles (Evolish Data Warehouse and Analytics Access
+    # Policy, EV-SEC-004).
+    "Data Engineer",
+    "Data Analyst",
 ]
 
 # The subset of roles the AI-governance permission model actively
@@ -42,6 +46,8 @@ GOVERNANCE_DEMO_ROLES = [
     "HR",
     "Manager",
     "Supervisor",
+    "Data Engineer",
+    "Data Analyst",
     "Admin",
 ]
 

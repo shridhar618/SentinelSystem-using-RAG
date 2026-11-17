@@ -25,7 +25,7 @@ def test_allowed_request_general_question():
 def test_warning_request_hr_pii_masking():
     result = _run("hr", "What's the onboarding date for employee X?", "They started March 2024, email jane@co.com")
     assert result.status == "filtered"
-    assert "Data Privacy & Classification Policy" in " ".join(result.policy_evidence)
+    assert "Data Classification and Handling Policy" in " ".join(result.policy_evidence)
 
 
 # 3. Restricted request (intern asking for salary data)
@@ -33,8 +33,8 @@ def test_restricted_request_salary_data():
     result = _run("intern", "What is the salary of all data engineers?")
     assert result.status == "blocked"
     assert result.risk_level == "high"
-    assert "Role & Access Control Policy" in " ".join(result.policy_evidence)
-    assert "Data Privacy & Classification Policy" in " ".join(result.policy_evidence)
+    assert "Access Control Policy" in " ".join(result.policy_evidence)
+    assert "HR and Employee Records Policy" in " ".join(result.policy_evidence)
 
 
 # 4. Unauthorized role (a role lacking the relevant permission is blocked

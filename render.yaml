@@ -21,11 +21,12 @@ services:
         value: "10000"
       - key: DEBUG
         value: "0"
-      # mock = offline policy mode (no key needed). For written AI answers,
-      # set AI_PROVIDER=gemini and paste a free Google AI Studio key below.
+      # Gemini answers. Paste a free Google AI Studio key as GEMINI_API_KEY in
+      # the Render dashboard; without one the chat falls back to offline
+      # policy mode. gemini-2.5-flash is no longer offered to new keys.
       - key: AI_PROVIDER
-        value: mock
+        value: gemini
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash-lite

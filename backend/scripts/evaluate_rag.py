@@ -20,6 +20,7 @@ Usage (after running scripts/ingest_policies.py):
 
 import argparse
 import json
+import re
 import time
 from pathlib import Path
 
@@ -27,15 +28,26 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 DATASET_PATH = BACKEND_ROOT / "evaluation" / "eval_dataset.json"
 
 
-def _citation_matches(expected: str, retrieved_document_name: str, retrieved_category: str) -> bool:
-    """A retrieved chunk "matches" an expected citation if it's from the
-    same policy document the citation names (document-level matching,
-    since RAG retrieval doesn't currently return a §-numbered section the
-    way the Phase 5 static lookup does -- see docs/PHASE_25_NOTES.md on
-    why document-level is the honest granularity to evaluate at for now).
+def _normalise_doc_name(name: str) -> str:
+    """Canonical form for comparing a citation's document title with an
+    indexed filename: "Data Privacy & Classification Policy" and
+    "Data_Privacy_and_Classification_Policy.md" both become
+    "data privacy and classification policy". Without this the two never
+    compared equal and every scenario scored 0.0 (see
+    evaluation/rag_eval_results_before_matcher_fix.json).
     """
-    expected_doc_name = expected.split("\u00a7")[0].strip()
-    return expected_doc_name.lower() in (retrieved_document_name or "").lower()
+    name = (name or "").split("\u00a7")[0].strip().lower()
+    name = re.sub(r"\.(md|pdf|txt)$", "", name)
+    name = name.replace("&", " and ").replace("_", " ").replace("-", " ")
+    return re.sub(r"\s+", " ", name).strip()
+
+
+def _citation_matches(expected: str, retrieved_document_name: str, retrieved_category: str) -> bool:
+    """Document-level match between an expected citation and a retrieved
+    chunk (retrieval does not return a section number, so document-level
+    is the granularity that can be evaluated).
+    """
+    return _normalise_doc_name(expected) == _normalise_doc_name(retrieved_document_name)
 
 
 def evaluate(top_k: int = 4):
@@ -65,13 +77,15 @@ def evaluate(top_k: int = 4):
 
             expected_docs = {e.split("\u00a7")[0].strip() for e in scenario["expected_evidence"]}
             retrieved_docs = {r["document_name"] for r in retrieved}
+            expected_norm = {_normalise_doc_name(e) for e in expected_docs}
+            retrieved_norm = {_normalise_doc_name(d) for d in retrieved_docs}
 
             true_positives = sum(
                 1 for r in retrieved
                 if any(_citation_matches(e, r["document_name"], r["category"]) for e in scenario["expected_evidence"])
             )
             precision = true_positives / len(retrieved) if retrieved else 0.0
-            recall = len(expected_docs & retrieved_docs) / len(expected_docs) if expected_docs else None
+            recall = len(expected_norm & retrieved_norm) / len(expected_norm) if expected_norm else None
 
             results.append({
                 "id": scenario["id"],

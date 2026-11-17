@@ -43,9 +43,9 @@ DEFAULT_RISK_CONFIG = {
 # Previously every rule below was only ever checked for role == "intern",
 # meaning Manager/Supervisor/Software Engineer/Admin accounts received zero
 # filtering -- including for credential and SSN requests. That contradicted
-# the org's own Data Privacy & Classification Policy (§5.1: credentials are
-# "never disclosed... regardless of role, permission") and Role & Access
-# Control Policy (§3.5: Manager is not granted view_employee_salary). This
+# Evolish's Information Security Policy (§4.3: credentials are never
+# disclosed to any role) and Access Control Policy (§4.6: Manager is not
+# granted view_employee_salary). This
 # split makes the engine check the real Phase 1 permission model instead of
 # a hardcoded role name, so every role is now held to the policy it actually
 # describes rather than only interns being enforced.
@@ -60,12 +60,18 @@ UNIVERSAL_BLOCKED_RULES = [
     (r"\bcredit\s*card\b",          "credit card data"),
     (r"\bbank\s*account\b",         "banking information"),
     (r"\bprivate\s*key\b",          "private key material"),
+    # Data Classification and Handling Policy §4.9 / §4.10 (Evolish is an
+    # Indian FinTech: Aadhaar, PAN, CVV and UPI PIN are never disclosed).
+    (r"\baadh?aar\b",                "Aadhaar number"),
+    (r"\bpan\s*(?:numbers?|cards?|details|no\b)", "PAN details"),
+    (r"\b(?:cvv|cvc)\b",             "card security code"),
+    (r"\bupi\s*pin\b",              "UPI PIN"),
 ]
 
 # PERMISSION_GATED_RULES: blocked only for a role that lacks the named
 # permission (so HR/Admin/Manager -- which hold these permissions -- are
 # correctly let through, while Intern/Software Engineer/Supervisor -- which
-# don't -- are blocked, matching Role & Access Control Policy §3).
+# don't -- are blocked, matching Access Control Policy §4.13-§4.15).
 PERMISSION_GATED_RULES = [
     (r"\bsalar(?:y|ies)\b",          "salary/compensation data",            "view_employee_salary"),
     (r"\bcompensation\b",            "compensation information",            "view_employee_salary"),
@@ -78,6 +84,13 @@ PERMISSION_GATED_RULES = [
     (r"\bdate\s*of\s*birth\b",       "date of birth",                       "view_employee_pii"),
     (r"\bemployee\s*(?:records?|directory|details|personal\s*info\w*)\b", "employee records", "view_employee_pii"),
     (r"\bpersonal\s*(?:details|information|info)\b", "personal details",   "view_employee_pii"),
+    # Data Warehouse and Analytics Access Policy §4.2: raw transaction data
+    # is for Data Engineers only; §4.3/§4.4: masked analytics tables are for
+    # Data Engineers and Data Analysts, nobody else.
+    (r"\b(?:raw|unmasked)\s+(?:transaction|payment|upi|loan|customer|warehouse)s?\s*(?:data|logs?|records?|tables?)\b",
+     "raw warehouse data", "view_warehouse_raw_data"),
+    (r"\b(?:masked|tokeni[sz]ed)\s+(?:\w+\s+)?(?:tables?|datasets?|data)\b|\bwarehouse\s+(?:tables?|datasets?|data)\b",
+     "warehouse analytics data", "view_warehouse_masked_data"),
 ]
 
 # INTERN_ONLY_CAUTION_RULES: kept as intern-specific for now (unchanged
@@ -113,7 +126,7 @@ HR_MASKED_RULES = [
      "[SSN REDACTED]", "SSN-format number"),
     (r"\b(?:\d[ -]?){13,16}\b",
      "[CARD REDACTED]", "card number"),
-    (r"\$[\d,]+(?:\.\d{2})?(?:\s*(?:k|K|thousand|million|billion))?\b",
+    (r"(?:\$|₹|\b(?:INR|Rs\.?)\s?)[\d,]+(?:\.\d{2})?(?:\s*(?:k|K|thousand|million|billion|lakhs?|crores?))?\b",
      "[AMOUNT REDACTED]", "salary/financial figure"),
     (r"(?i)password\s*[:=]\s*\S+",
      "password: [REDACTED]", "inline password"),
@@ -173,54 +186,85 @@ class FilterResult:
 # ─────────────────────────────────────────────────────────────────────────────
 # This maps each rule label this engine can trigger to the specific
 # organization policy document (and clause) that actually governs it --
-# see backend/policy_corpus/organization/*.md. It is a deterministic lookup
+# see backend/policy_corpus/organization/*.md (the eight Evolish Technologies
+# policies, EV-SEC-001..008; "§4.2" is the "## 4.2 ..." heading of the named
+# document). It is a deterministic lookup
 # table, not a similarity search over embeddings: the RAG pipeline (Phase 6)
 # will eventually retrieve evidence dynamically across the full policy
 # corpus (including the NIST/OWASP/DPDP external frameworks), and should
 # supersede this table rather than run alongside it as a second, conflicting
 # source of citations. Every citation below points to a clause that was
 # actually authored to describe this exact rule, so this is accurate today,
-# not a placeholder -- but its coverage is limited to the 4 org documents on
+# not a placeholder -- but its coverage is limited to the 8 org documents on
 # purpose, since verifying accuracy against a hand-written table is only
 # tractable for a small, fully-authored corpus.
 
+_ISP = "Information Security Policy"
+_DCH = "Data Classification and Handling Policy"
+_ACP = "Access Control Policy"
+_DWA = "Data Warehouse and Analytics Access Policy"
+_AUP = "Acceptable Use of AI Tools Policy"
+_DPP = "Data Privacy Policy"
+_HRP = "HR and Employee Records Policy"
+_IRP = "Incident Response and Security Monitoring Policy"
+
+_SALARY_CITATIONS = [f"{_HRP} §4.2", f"{_ACP} §4.14"]
+_CREDENTIAL_CITATIONS = [f"{_ISP} §4.3", f"{_DCH} §4.5"]
+_IDENTIFIER_CITATIONS = [f"{_DCH} §4.9"]
+_PAYMENT_DATA_CITATIONS = [f"{_DCH} §4.10"]
+_PERSONAL_DATA_CITATIONS = [f"{_DPP} §4.4", f"{_ACP} §4.15"]
+_EMPLOYEE_RECORD_CITATIONS = [f"{_HRP} §4.3", f"{_ACP} §4.15"]
+
 _INTERN_RULE_POLICY_MAP = {
-    "salary/compensation data": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.4"],
-    "compensation information": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.4"],
-    "pay scale details": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.4"],
-    "password information": ["Data Privacy & Classification Policy §5.1(b)", "AI Security & Incident Response Policy §2(c)"],
-    "credential data": ["Data Privacy & Classification Policy §5.1(b)", "AI Security & Incident Response Policy §2(c)"],
-    "API key material": ["Data Privacy & Classification Policy §5.1(b)"],
-    "secret/classified content": ["Data Privacy & Classification Policy §2.4", "AI Acceptable Use Policy §4.1"],
-    "confidential content": ["AI Acceptable Use Policy §4.1", "Data Privacy & Classification Policy §2.3"],
-    "proprietary information": ["AI Acceptable Use Policy §4.1"],
-    "Social Security Number": ["Data Privacy & Classification Policy §5.1", "AI Security & Incident Response Policy §2(d)"],
-    "Social Security information": ["Data Privacy & Classification Policy §5.1", "AI Security & Incident Response Policy §2(d)"],
-    "credit card data": ["Data Privacy & Classification Policy §5.1"],
-    "banking information": ["Data Privacy & Classification Policy §5.1"],
-    "private key material": ["Data Privacy & Classification Policy §5.1(b)"],
-    "internal-only content": ["AI Acceptable Use Policy §4.1", "Data Privacy & Classification Policy §2.2"],
-    "classified information": ["Data Privacy & Classification Policy §2.4"],
-    "personal data records": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.3"],
-    "personally identifiable information": ["Role & Access Control Policy §3.2", "Data Privacy & Classification Policy §2.3"],
-    "payroll data": ["Role & Access Control Policy §4.1(a)", "Data Privacy & Classification Policy §3.4(a)"],
-    "employee contact details": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
-    "home address": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
-    "date of birth": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
-    "employee records": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
-    "personal details": ["Role & Access Control Policy §4.1(b)", "Data Privacy & Classification Policy §3.3"],
+    # Permission-gated: view_employee_salary
+    "salary/compensation data": _SALARY_CITATIONS,
+    "compensation information": _SALARY_CITATIONS,
+    "pay scale details": _SALARY_CITATIONS,
+    "payroll data": _SALARY_CITATIONS,
+    # Universal: credentials and secrets
+    "password information": _CREDENTIAL_CITATIONS,
+    "credential data": _CREDENTIAL_CITATIONS,
+    "API key material": _CREDENTIAL_CITATIONS,
+    "private key material": _CREDENTIAL_CITATIONS,
+    # Universal: government-issued identifiers
+    "Social Security Number": _IDENTIFIER_CITATIONS,
+    "Social Security information": _IDENTIFIER_CITATIONS,
+    "Aadhaar number": _IDENTIFIER_CITATIONS,
+    "PAN details": _IDENTIFIER_CITATIONS,
+    # Universal: payment card and bank account data
+    "credit card data": _PAYMENT_DATA_CITATIONS,
+    "banking information": _PAYMENT_DATA_CITATIONS,
+    "card security code": _PAYMENT_DATA_CITATIONS,
+    "UPI PIN": _PAYMENT_DATA_CITATIONS,
+    # Intern-only caution rules
+    "secret/classified content": [f"{_ACP} §4.2", f"{_DCH} §4.5"],
+    "classified information": [f"{_ACP} §4.2", f"{_DCH} §4.5"],
+    "confidential content": [f"{_ACP} §4.2", f"{_DCH} §4.4"],
+    "proprietary information": [f"{_ACP} §4.2", f"{_DCH} §4.4"],
+    "internal-only content": [f"{_ACP} §4.2", f"{_DCH} §4.3"],
+    # Permission-gated: view_employee_pii
+    "personal data records": _PERSONAL_DATA_CITATIONS,
+    "personally identifiable information": _PERSONAL_DATA_CITATIONS,
+    "employee contact details": _EMPLOYEE_RECORD_CITATIONS,
+    "home address": _EMPLOYEE_RECORD_CITATIONS,
+    "date of birth": _EMPLOYEE_RECORD_CITATIONS,
+    "employee records": _EMPLOYEE_RECORD_CITATIONS,
+    "personal details": _EMPLOYEE_RECORD_CITATIONS,
+    # Permission-gated: data warehouse
+    "raw warehouse data": [f"{_DWA} §4.2", f"{_ACP} §4.13"],
+    "warehouse analytics data": [f"{_DWA} §4.3", f"{_DWA} §4.4"],
 }
 
 # Contextual threat categories (services/threat_detection.py) -> governing clauses.
 _THREAT_CATEGORY_POLICY_MAP = {
-    "credential_theft": ["AI Security & Incident Response Policy §2(c)", "Data Privacy & Classification Policy §5.1"],
-    "private_conversation_access": ["Data Privacy & Classification Policy §3.3", "Role & Access Control Policy §4.2"],
-    "database_exploitation": ["AI Security & Incident Response Policy §2(a)", "AI Security & Incident Response Policy §2(c)"],
-    "auth_bypass": ["AI Security & Incident Response Policy §2(a)", "Data Privacy & Classification Policy §5.1"],
-    "unauthorized_access": ["AI Security & Incident Response Policy §2(a)", "Role & Access Control Policy §4.2"],
-    "sensitive_data_extraction": ["AI Security & Incident Response Policy §2(c)", "AI Security & Incident Response Policy §2(d)"],
-    "privilege_escalation": ["Role & Access Control Policy §4.2", "Role & Access Control Policy §5.1"],
-    "prompt_injection": ["AI Acceptable Use Policy §4", "AI Security & Incident Response Policy §2(a)"],
+    "credential_theft": [f"{_ISP} §4.3", f"{_IRP} §4.5"],
+    "private_conversation_access": [f"{_DPP} §4.5", f"{_ACP} §4.1"],
+    "database_exploitation": [f"{_ISP} §4.6", f"{_DWA} §4.8"],
+    "auth_bypass": [f"{_ACP} §4.17", f"{_ISP} §4.6"],
+    "unauthorized_access": [f"{_ACP} §4.1", f"{_ISP} §4.6"],
+    "sensitive_data_extraction": [f"{_DPP} §4.16", f"{_DWA} §4.8"],
+    "privilege_escalation": [f"{_ACP} §4.16", f"{_IRP} §4.5"],
+    "prompt_injection": [f"{_AUP} §4.5", f"{_IRP} §4.5"],
 }
 
 # Which permission makes a non-bulk "sensitive data" request legitimate for a role.
@@ -251,20 +295,20 @@ THREAT_BLOCK_SCORE = 40
 _BULK_RE = re.compile(r"\b(?:all|every|everyone|full|complete|entire|bulk|export|dump|download|scrape|harvest|exfiltrat\w*)\b", re.I)
 
 _LAYER2_CATEGORY_POLICY_MAP = {
-    "cybersecurity threat language": ["AI Security & Incident Response Policy §2(a)"],
-    "malware / attack tooling": ["AI Security & Incident Response Policy §2(b)"],
-    "data exfiltration signals": ["AI Security & Incident Response Policy §2(c)", "Data Privacy & Classification Policy §5"],
-    "sensitive PII disclosure": ["AI Security & Incident Response Policy §2(d)", "Data Privacy & Classification Policy §2.3"],
-    "insider threat indicators": ["AI Security & Incident Response Policy §2(e)"],
+    "cybersecurity threat language": [f"{_ISP} §4.6", f"{_IRP} §4.4"],
+    "malware / attack tooling": [f"{_ISP} §4.7", f"{_IRP} §4.4"],
+    "data exfiltration signals": [f"{_DWA} §4.8", f"{_DPP} §4.16"],
+    "sensitive PII disclosure": [f"{_DPP} §4.4", f"{_IRP} §4.4"],
+    "insider threat indicators": [f"{_ISP} §4.9", f"{_IRP} §4.11"],
 }
 
 _HR_MASK_POLICY_MAP = {
-    "email address": ["Data Privacy & Classification Policy §4.1"],
-    "phone number": ["Data Privacy & Classification Policy §4.1"],
-    "SSN-format number": ["Data Privacy & Classification Policy §4.1", "§5.1"],
-    "card number": ["Data Privacy & Classification Policy §4.1", "§5.1"],
-    "salary/financial figure": ["Data Privacy & Classification Policy §4.1", "§2.4"],
-    "inline password": ["Data Privacy & Classification Policy §5.1(b)"],
+    "email address": [f"{_DCH} §4.12"],
+    "phone number": [f"{_DCH} §4.12"],
+    "SSN-format number": [f"{_DCH} §4.12", f"{_DCH} §4.9"],
+    "card number": [f"{_DCH} §4.12", f"{_DCH} §4.10"],
+    "salary/financial figure": [f"{_DCH} §4.12", f"{_HRP} §4.8"],
+    "inline password": [f"{_DCH} §4.12", f"{_ISP} §4.3"],
 }
 
 
@@ -324,7 +368,8 @@ def adjust_threat_for_role(threat, query: str, permissions: list):
     targeted, non-bulk request for data the requester's role IS authorized
     to see (e.g. HR asking for one employee's salary) would otherwise score
     the same as an Intern asking for it. That case is dampened; bulk
-    extraction stays high for everyone (AI Security Policy §2(c))."""
+    extraction stays high for everyone (Data Privacy Policy §4.16; HR and
+    Employee Records Policy §4.7)."""
     if threat is None or not threat.categories:
         return threat
     if set(threat.categories) != {"sensitive_data_extraction"} or _BULK_RE.search(query or ""):
@@ -346,7 +391,8 @@ def adjust_threat_for_role(threat, query: str, permissions: list):
 
 def _apply_threat(result: FilterResult, threat, config) -> FilterResult:
     """Fold the contextual intent assessment into the decision: HIGH/CRITICAL
-    intent is RESTRICTED (AI Security Policy §3.2), MEDIUM raises risk and
+    intent is RESTRICTED (Incident Response and Security Monitoring Policy
+    §4.5), MEDIUM raises risk and
     adds a caution, LOW only contributes its score."""
     if threat is None or threat.score <= 0:
         return result
@@ -372,12 +418,12 @@ def _apply_threat(result: FilterResult, threat, config) -> FilterResult:
             explanation = (
                 f"This request is blocked because it shows high-risk intent ({threat.score}/100): {categories}. "
                 "A single high-risk request is restricted by default and logged as a security event "
-                "(AI Security & Incident Response Policy §3.2)."
+                "(Incident Response and Security Monitoring Policy §4.5)."
             )
             guidance = (
                 "Requests aimed at attacking systems, bypassing controls, or obtaining other people's data or "
                 "credentials are not permitted for any role. If this is legitimate security work, contact the "
-                "Governance Office."
+                "Security team."
             )
             result.status = "blocked"
             result.filtered_response = (
@@ -460,7 +506,7 @@ def apply_governance(response: str, query: str, role: str, permissions: Optional
         # and view_employee_salary, so it won't be blocked by those rules,
         # but inline PII that slips into a response text still gets masked.
         # Fields the request actually asked for are not masked (Data
-        # Privacy Policy §4.2: masking is per-field relevance).
+        # Classification and Handling Policy §4.12/§4.13: per-field relevance).
         hr_result = _filter_hr(result.filtered_response, result.risk_score, result.risk_level, query=query)
         if hr_result.status == "filtered" and result.status == "allowed":
             hr_result.policy_evidence = result.policy_evidence + hr_result.policy_evidence

@@ -117,4 +117,4 @@ def test_fresh_database_is_seeded_with_policy_text(app, client, role_users):
         assert PolicyChunk.query.count() > 0
     result = _ask(client, role_users, "intern_bob", "What happens if I violate the AI acceptable use policy?")
     assert result["status"] == "allowed"
-    assert "AI_Acceptable_Use_Policy.md" in result["response"]
+    assert "Acceptable_Use_of_AI_Tools_Policy.md" in result["response"]
