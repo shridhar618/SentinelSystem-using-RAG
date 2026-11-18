@@ -135,6 +135,7 @@ export default function GovernanceCasesPage() {
           </div>
         )}
         {!loading && !error && cases.length > 0 && (
+          <div className="ui-table-scroll">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/5 text-slate-500 uppercase text-[10px] tracking-wider">
@@ -165,6 +166,7 @@ export default function GovernanceCasesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

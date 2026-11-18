@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 import { getSocket, disconnectSocket } from '../utils/socket'
-import { Send, MessageSquare, Circle, Loader } from 'lucide-react'
+import { Send, MessageSquare, Circle, Loader, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { getRoleMeta } from '../utils/roles'
 
@@ -154,10 +154,11 @@ export default function PrivateChatPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex h-full"
+      className="flex h-full min-w-0"
     >
-      {/* User list sidebar */}
-      <div className="w-64 flex flex-col border-r border-white/5 glass">
+      {/* User list sidebar. On phones it is the whole screen until a
+          conversation is open, then the chat takes over (with a back button). */}
+      <div className={`${activeUser ? 'hidden md:flex' : 'flex'} w-full md:w-64 flex-col border-r border-white/5 glass`}>
         <div className="px-4 py-4 border-b border-white/5">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <MessageSquare size={14} className="text-accent" />
@@ -220,12 +221,20 @@ export default function PrivateChatPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${activeUser ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col`}>
         {activeUser ? (
           <>
             {/* Chat header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5 glass">
-              <div className="relative">
+            <div className="flex items-center gap-3 px-3 md:px-5 py-4 border-b border-white/5 glass">
+              <button
+                type="button"
+                onClick={() => setActiveUser(null)}
+                className="md:hidden -ml-1 p-2 rounded-full text-slate-400 hover:text-accent"
+                aria-label="Back to conversations"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div className="relative flex-shrink-0">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-bg-900 ${
                   activeUser.role === 'admin' ? 'bg-purple-400' : activeUser.role === 'hr' ? 'bg-warn' : activeUser.role === 'intern' ? 'bg-accent' : 'bg-slate-500'
                 }`}>

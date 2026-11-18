@@ -68,7 +68,10 @@ KNOWN_DOCUMENTS = {
 }
 
 # Files in the organisation folder that are not policies.
-NON_POLICY_FILES = {"README.md"}
+# Policy_Framework_References.md (EV-SEC-009) only maps policies to external
+# frameworks; ingesting it would let its cross-reference tables outrank the
+# real clauses in retrieval.
+NON_POLICY_FILES = {"README.md", "Policy_Framework_References.md"}
 
 
 def _content_hash(text: str) -> str:
