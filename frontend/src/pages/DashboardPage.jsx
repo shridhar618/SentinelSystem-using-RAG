@@ -6,7 +6,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import {
   Activity, AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, EyeOff,
   Filter, Lock, RefreshCw, Search, ShieldAlert, ShieldCheck, TrendingUp,
-  UserX, Zap, ThumbsDown, Clock, Ban,
+  UserX, Zap, ThumbsDown, Clock, Ban, Trash2,
 } from 'lucide-react'
 
 import api from '../utils/api'
@@ -256,6 +256,18 @@ export default function DashboardPage() {
     fetchData()
   }, [fetchData])
 
+  const deleteLog = async (log) => {
+    const label = log.query ? `"${String(log.query).slice(0, 60)}"` : `#${log.id}`
+    if (!window.confirm(`Permanently delete log entry ${label} by ${log.username}?`)) return
+    try {
+      await api.delete(`/logs/${log.id}`)
+      if (selectedLog?.id === log.id) setSelectedLog(null)
+      fetchData()
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'Could not delete log entry')
+    }
+  }
+
   const exportLogs = async () => {
     const res = await api.get('/logs/export', { responseType: 'blob' })
     const url = window.URL.createObjectURL(res.data)
@@ -476,7 +488,7 @@ export default function DashboardPage() {
                 <table className="w-full text-[11px] font-mono">
                   <thead>
                     <tr className="border-b border-white/5 text-slate-500 uppercase tracking-wider text-[10px]">
-                      {['Time', 'User', 'Role', 'Query', 'Status', 'Risk', 'Explain'].map(header => (
+                      {['Time', 'User', 'Role', 'Query', 'Status', 'Risk', 'Actions'].map(header => (
                         <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>
                       ))}
                     </tr>
@@ -495,9 +507,14 @@ export default function DashboardPage() {
                         <td className="px-4 py-3"><span className={`uppercase text-[10px] font-bold px-1.5 py-0.5 rounded border ${log.status === 'allowed' ? 'text-success bg-success/10 border-success/20' : log.status === 'filtered' ? 'text-warn bg-warn/10 border-warn/20' : 'text-danger bg-danger/10 border-danger/20'}`}>{log.status}</span></td>
                         <td className="px-4 py-3"><RiskBadge level={log.risk_level || 'low'} /></td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setSelectedLog(log)} className="p-1.5 rounded-lg bg-white/5 hover:bg-accent/10 text-slate-500 hover:text-accent border border-transparent hover:border-accent/20">
-                            <Eye size={12} />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => setSelectedLog(log)} title="Explain" aria-label="Explain" className="p-1.5 rounded-lg bg-white/5 hover:bg-accent/10 text-slate-500 hover:text-accent border border-transparent hover:border-accent/20">
+                              <Eye size={12} />
+                            </button>
+                            <button onClick={() => deleteLog(log)} title="Delete entry" aria-label="Delete entry" className="p-1.5 rounded-lg bg-white/5 hover:bg-danger/10 text-slate-500 hover:text-danger border border-transparent hover:border-danger/20">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -603,6 +620,7 @@ export default function DashboardPage() {
                 </div>
               )}
               {!securityError && securityEvents.length > 0 && (
+                <div className="ui-table-scroll">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-white/5 text-slate-500 uppercase text-[10px] tracking-wider">
@@ -625,6 +643,7 @@ export default function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </>

@@ -4,14 +4,18 @@ from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, jsonify, make_response, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
 
 from app import db
 from app.models.audit_log import AuditLog
+from app.models.ghost_investigation import ThreatAlert
 from app.models.governance_case import GovernanceCase
 from app.models.question_feedback import QuestionFeedback
+from app.models.risk_event import RiskEvent
 from app.models.user import User
+from app.services.audit import record_audit_event
 from app.services.governance import SUSPICIOUS_QUERY_THRESHOLD
+from app.services.ledger import seal_pending
 from app.utils.authz import get_current_user
 
 logs_bp = Blueprint("logs", __name__)
@@ -334,6 +338,56 @@ def export_logs():
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
     response.headers["Content-Disposition"] = "attachment; filename=secureai-audit-logs.csv"
     return response
+
+
+@logs_bp.route("/logs/<int:log_id>", methods=["DELETE"])
+@jwt_required()
+def delete_log(log_id):
+    """Admin-only removal of a single audit entry (e.g. a junk demo prompt).
+
+    Rows that reference the entry are detached or removed, and every block
+    after it is re-sealed so the Blockchain Explorer chain still verifies.
+    The deletion itself is recorded as an admin_action, without the deleted
+    query text.
+    """
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    entry = db.session.get(AuditLog, log_id)
+    if not entry:
+        return jsonify({"error": "Log entry not found"}), 404
+
+    deleted_seq = entry.chain_seq
+    deleted_user = entry.username
+
+    QuestionFeedback.query.filter_by(audit_log_id=log_id).delete()
+    RiskEvent.query.filter_by(audit_log_id=log_id).update({"audit_log_id": None})
+    ThreatAlert.query.filter_by(audit_log_id=log_id).update({"audit_log_id": None})
+    db.session.delete(entry)
+    db.session.flush()
+
+    # Re-chain everything after the removed block so verification still passes.
+    connection = db.session.connection()
+    if deleted_seq is not None:
+        connection.execute(
+            update(AuditLog.__table__)
+            .where(AuditLog.__table__.c.chain_seq > deleted_seq)
+            .values(chain_seq=None, chain_prev_hash=None, chain_hash=None)
+        )
+    seal_pending(connection)
+    db.session.expire_all()
+
+    record_audit_event(
+        "admin_action",
+        user=admin,
+        description=f"Admin '{admin.username}' deleted audit log entry #{log_id}",
+        resource=f"audit_log:{log_id}",
+        metadata={"action": "delete_audit_log", "log_id": log_id, "log_user": deleted_user},
+        commit=False,
+    )
+    db.session.commit()
+    return jsonify({"message": "Log entry deleted", "id": log_id}), 200
 
 
 @logs_bp.route("/logs/suspicious/<int:user_id>", methods=["PATCH"])
