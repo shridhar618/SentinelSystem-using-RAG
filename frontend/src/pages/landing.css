@@ -230,9 +230,16 @@
 .sa-hero__bar button { color: inherit; letter-spacing: inherit; text-transform: inherit; font-size: inherit; }
 .sa-hero__bar button:hover { color: var(--green); }
 
+/* Grid tracks default to min-width:auto, so one long display word (e.g.
+   "GOVERNED,") widened the whole column past a phone screen and got
+   clipped. minmax(0, 1fr) keeps every track inside the viewport. */
+.sa-hero__inner { grid-template-columns: minmax(0, 1fr); }
+.sa-hero__copy { min-width: 0; }
+
 @media (max-width: 720px) {
   .sa-hero__inner { padding: 7rem 1.5rem 3rem; }
-  .sa-hero__title { font-size: clamp(2.6rem, 12.5vw, 5rem); }
+  /* Syne 800 is very wide: ~9.4vw keeps a 9-letter word on one line at 320–720px. */
+  .sa-hero__title { font-size: clamp(1.9rem, 9.4vw, 4.2rem); }
   .sa-hero__art { opacity: 0.06; }
   .sa-hide-sm { display: none !important; }
   .sa-hero__bar { margin: 0 1.5rem; }
@@ -302,7 +309,7 @@
 
 .sa-head { display: flex; flex-direction: column; gap: 1.1rem; max-width: 50rem; margin-bottom: clamp(2.5rem, 5vw, 4rem); }
 .sa-head > div { display: flex; flex-direction: column; gap: 1.1rem; }
-.sa-head--split { max-width: none; display: grid; gap: 1.5rem; align-items: end; }
+.sa-head--split { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: end; }
 @media (min-width: 900px) { .sa-head--split { grid-template-columns: 1.3fr 1fr; gap: 4rem; } }
 
 .sa-h2 {
@@ -443,7 +450,7 @@
 .sa-carousel { margin-top: 1.25rem; padding: 1.6rem clamp(1.2rem, 3vw, 2rem); }
 .sa-carousel__top { display: flex; justify-content: space-between; align-items: center; color: var(--text-3); font-size: 0.8rem; }
 .sa-carousel__stage { min-height: 17rem; margin-top: 1.2rem; }
-.sa-slide { display: grid; gap: 2rem; align-items: center; min-height: 17rem; }
+.sa-slide { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; align-items: center; min-height: 17rem; }
 @media (min-width: 820px) { .sa-slide { grid-template-columns: 1.2fr 1fr; gap: 4rem; } }
 .sa-slide__num { color: var(--green); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
 .sa-slide__copy h3 {
@@ -542,6 +549,7 @@
   .sa-login__inner { grid-template-columns: minmax(0, 1.25fr) minmax(22rem, 27rem); }
 }
 .sa-login .sa-hero__title { font-size: clamp(2.8rem, 6.2vw, 7rem); }
+.sa-login__inner > * { min-width: 0; }
 
 .sa-form { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 0.9rem; padding: 2rem clamp(1.25rem, 3vw, 2rem); }
 .sa-form__title {
@@ -588,7 +596,8 @@
 
 .sa-demo { margin-top: 0.6rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .sa-demo__label { display: block; margin-bottom: 0.6rem; color: var(--text-3); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; }
-.sa-demo__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.sa-demo__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.sa-demo__btn b, .sa-demo__btn span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
 .sa .sa-demo__btn {
   display: flex;
   flex-direction: column;
@@ -682,4 +691,25 @@
 @media (prefers-reduced-motion: reduce) {
   .sa-hero__art, .sa-hero__art svg, .sa-hero__art svg *, .sa-hero::before, .sa-hero__title::after { animation: none !important; stroke-dashoffset: 0; }
   .sa-btn::after { display: none; }
+}
+
+/* ---------- Phones ----------
+   Display type is sized in vw so the longest single word in each heading
+   ("ACCOUNT", "WELCOME", "ANSWERABLE.") fits a 320–720px screen. */
+@media (max-width: 720px) {
+  .sa-login .sa-hero__title { font-size: clamp(1.9rem, 9.4vw, 4.2rem); }
+  .sa-login__inner { padding: 6.5rem 1.25rem 3rem; }
+  .sa-h2 { font-size: clamp(1.6rem, 7.6vw, 2.6rem); }
+  .sa-statement__text { font-size: clamp(1.35rem, 6vw, 2.2rem); }
+  .sa-slide__copy h3 { font-size: clamp(1.4rem, 7vw, 2.2rem); }
+  /* "ANSWERABLE." is ~11.6em wide in Syne 800, so it needs <= 7.2vw. */
+  .sa-final__title { font-size: clamp(1.3rem, 7.2vw, 4.2rem); }
+  .sa-form__title { font-size: clamp(1.5rem, 7.5vw, 2rem); }
+  .sa-hero__ctas > * { max-width: 100%; }
+  .sa-hero__bar { flex-wrap: wrap; row-gap: 0.4rem; }
+}
+@media (max-width: 420px) {
+  .sa-demo__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sa-hero__ctas { flex-direction: column; align-items: stretch; }
+  .sa-hero__ctas .sa-btn { justify-content: space-between; }
 }

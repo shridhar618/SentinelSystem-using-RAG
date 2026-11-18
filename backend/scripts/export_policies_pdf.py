@@ -6,7 +6,7 @@ copies in backend/policies_pdf/:
 
   - one PDF per policy, and
   - a single master document with a cover page, a table of contents and all
-    eight policies in document-ID order, as both PDF and Word:
+    nine policies in document-ID order, as both PDF and Word:
         Evolish_Policy_Manual.pdf
         Evolish_Policy_Manual.docx   (needs the `pandoc` command)
 
@@ -217,7 +217,7 @@ class ManualDoc(SimpleDocTemplate):
 
 
 def render_manual_pdf(policies, out_path: Path) -> int:
-    doc = _doc(out_path, f"{COMPANY} - {MANUAL_TITLE}", "EV-SEC-001 to EV-SEC-008", cls=ManualDoc)
+    doc = _doc(out_path, f"{COMPANY} - {MANUAL_TITLE}", "EV-SEC-001 to EV-SEC-009", cls=ManualDoc)
     toc = TableOfContents()
     toc.levelStyles = [STYLES["toc_entry"]]
     story = [
