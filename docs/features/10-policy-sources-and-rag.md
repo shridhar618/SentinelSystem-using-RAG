@@ -4,7 +4,7 @@
 The policy corpus is the knowledge the chatbot is allowed to answer from: four organisation policies (AI Acceptable Use; AI Security & Incident Response; Data Privacy & Classification; Role & Access Control) plus external frameworks (NIST AI RMF Playbook, NIST AI 100-1, NIST AI 600-1). An ingestion script chunks and embeds them into a local vector index. The **Policy Sources** page (`/policy-sources`) lets admins inspect documents and chunks, enable or disable documents, re-index and delete them.
 
 ## Who can use it
-Admin (`manage_policies`). Retrieval runs for every chatbot request (doc 4).
+Any signed-in user can **list** policy documents and their indexing status (`GET /api/policies`) and read the RAG readiness report (`GET /api/policies/rag-status`). This is metadata about governance sources, not policy content. Viewing chunks, enabling/disabling, re-indexing and deleting require the `manage_policies` permission; direct search (`POST /api/policies/search`) requires the admin role. Retrieval runs for every chatbot request (doc 4).
 
 ## Tech stack
 | Concern | Technology |
@@ -39,13 +39,13 @@ query time (rag_service.retrieve_policy_evidence(query, top_k=5))
 ## API
 | Method | Path |
 |---|---|
-| GET | `/api/policies` |
+| GET | `/api/policies` (any signed-in user) |
 | GET | `/api/policies/<id>/chunks` |
 | PUT | `/api/policies/<id>/status` |
 | DELETE | `/api/policies/<id>` |
 | POST | `/api/policies/<id>/reindex` |
-| GET | `/api/policies/rag-status` |
-| POST | `/api/policies/search` |
+| GET | `/api/policies/rag-status` (any signed-in user) |
+| POST | `/api/policies/search` (admin) |
 
 Policy changes are audited (`policy_change`).
 
