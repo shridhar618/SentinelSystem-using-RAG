@@ -40,8 +40,8 @@ def view_policy_chunks(doc_id):
 @require_permission("manage_policies")
 def set_policy_status(doc_id):
     """The "Disable" action -- a disabled document is never deleted (audit
-    evidence for past decisions must remain intact, per the Data Privacy &
-    Classification Policy §6.2), it's just excluded from future retrieval.
+    evidence for past decisions must remain intact, per the Incident Response
+    and Security Monitoring Policy §4.12), it's just excluded from future retrieval.
     See rag_service.retrieve_policy_evidence(), which skips any chunk
     whose document.status != "active".
     """

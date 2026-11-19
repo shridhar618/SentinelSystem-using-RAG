@@ -88,6 +88,7 @@ export default function WorkloadPage() {
             {team.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">No team assignments recorded yet</div>
             ) : (
+              <div className="ui-table-scroll">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/5 text-slate-500 uppercase text-[10px] tracking-wider">
@@ -114,6 +115,7 @@ export default function WorkloadPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

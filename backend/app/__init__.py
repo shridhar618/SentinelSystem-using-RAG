@@ -136,6 +136,7 @@ def create_app():
     from app.routes.me import me_bp
     from app.routes.governance_cases import governance_cases_bp
     from app.routes.explorer import explorer_bp
+    from app.routes.user_management import user_management_bp
     from app.ghost_routes import ghost_bp
     from app.attack_routes import attack_bp
 
@@ -158,6 +159,7 @@ def create_app():
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(governance_cases_bp, url_prefix="/api")
     app.register_blueprint(explorer_bp, url_prefix="/api")
+    app.register_blueprint(user_management_bp, url_prefix="/api")
     app.register_blueprint(ghost_bp, url_prefix="/api")
     app.register_blueprint(attack_bp, url_prefix="/api")
 
@@ -239,6 +241,8 @@ def create_app():
         _seed_role_permissions()
         _seed_risk_configuration()
         _seed_investigation_questions()
+        from app.services.offline_assistant import seed_policy_text_if_empty
+        seed_policy_text_if_empty()
         _seal_audit_chain()
 
     # Phase 21/23: this is a JSON API. Without these, an unhandled exception
@@ -319,6 +323,8 @@ def _seed_demo_users():
         {"username": "admin", "email": "admin@secureai.com", "password": "admin123", "role": "admin", "login_code": "ADMINCODE1"},
         {"username": "hr_jane", "email": "hr@secureai.com", "password": "hr123", "role": "hr", "login_code": "HRCODE0001"},
         {"username": "intern_bob", "email": "intern@secureai.com", "password": "intern123", "role": "intern", "login_code": "INTCODE001"},
+        {"username": "de_arjun", "email": "data.engineer@secureai.com", "password": "dataeng123", "role": "data engineer", "login_code": "DENGCODE01"},
+        {"username": "da_meera", "email": "data.analyst@secureai.com", "password": "analyst123", "role": "data analyst", "login_code": "DANACODE01"},
     ]
 
     for u in demo_users:

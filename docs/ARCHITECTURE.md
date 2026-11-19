@@ -36,7 +36,7 @@ LOGIN ─ JWT (expires, default 8h) ─ role + permissions loaded
       permission use_ai_assistant?                 no → 403 + audit
       active admin Restriction (case restricted)?  yes → 403 + audit
       message ≤ 4000 chars
-      AI response (provider or TF-IDF question bank)
+      retrieve policy chunks (RAG) → grounded LLM response
       apply_governance(): universal rules → permission-gated rules → role rules
                           → risk score → validator → policy evidence → recommended action
       AuditLog row (decision, risk, reason, evidence)
@@ -76,7 +76,7 @@ Principles: RBAC authorizes · the rule engine decides · policy documents suppl
 - **Interactive investigations** act on real users, so they are tightly bounded: contextual threat detection raises an alert → an admin explicitly activates (server-side confirmation) → the suspect's chatbot traffic is diverted to an **isolated decoy** that never touches RAG, the policy index or user records → AI Persona (prompt-injection and output guards) or Admin Manual Control (single controlling admin, forced takeover logged) → every action recorded in the investigation timeline and the hash-chained audit log → terminate or suspend (confirmed). Admin accounts can't be targeted; sessions expire. Details: `features/12-ghost-mode.md`.
 
 ## Frontend routes
-`/login`, `/welcome`, `/my-dashboard`, `/chat`, `/policy-sources`*, `/governance-cases`*, `/dashboard`*, `/ghost-mode`*, `/attack-sim`*, `/blockchain-explorer`*, `/user-access`*, `/question-bank`*, `/attendance`, `/my-work`, `/workload`, `/work-assignments`†, `/work-board`†, `/work-escalations`†, `/messages` (* admin, † manager). Sidebar sections appear only if the role has something in them.
+`/login`, `/welcome`, `/my-dashboard`, `/chat`, `/policy-sources`*, `/governance-cases`*, `/dashboard`*, `/ghost-mode`*, `/attack-sim`*, `/blockchain-explorer`*, `/user-management`*, `/user-access`*, `/attendance`, `/my-work`, `/workload`, `/work-assignments`†, `/work-board`†, `/work-escalations`†, `/messages` (* admin, † manager). Sidebar sections appear only if the role has something in them.
 
 ## Deliberate simplifications (MCA-capstone scope)
 SQLite instead of Postgres; no migration framework (idempotent `_ensure_*` helpers); in-memory rate limiter; single-process Socket.IO; RAG is optional and offline from the decision path.

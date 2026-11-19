@@ -1,218 +1,128 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
-import {
-  Send, Trash2, Bot, User, Lock, ShieldAlert, ShieldCheck, Shield, Cpu,
-  AlertTriangle, Zap, ChevronDown, ChevronUp, Info, BookOpen,
-  Download, ThumbsUp, ThumbsDown,
-} from 'lucide-react'
+import { Send, Trash2, Download, Cpu, PanelRight, Sparkles, X, ShieldCheck } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 import { getSocket } from '../utils/socket'
 import { getRoleMeta } from '../utils/roles'
+import AssistantMessage from '../components/chat/AssistantMessage'
+import ChatSidebar from '../components/chat/ChatSidebar'
+import Suggestions from '../components/chat/Suggestions'
 
-const STATUS_CONFIG = {
-  allowed: { icon: ShieldCheck, color: 'text-success', bg: 'bg-success/10 border-success/20', label: 'Allowed' },
-  filtered: { icon: Shield, color: 'text-warn', bg: 'bg-warn/10 border-warn/20', label: 'Filtered' },
-  blocked: { icon: Lock, color: 'text-danger', bg: 'bg-danger/10 border-danger/20', label: 'Blocked' },
+const MAX_CHARS = 4000
+
+function welcomeMessage(text) {
+  return { id: 'welcome', role: 'assistant', content: text, timestamp: new Date().toISOString(), status: 'allowed', risk_level: 'low', risk_score: 0 }
 }
 
-const RISK_CONFIG = {
-  low: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#4f9a6a' },
-  medium: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#c9922e' },
-  high: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#c4553f' },
+function storageKey(user) {
+  return user ? `secureai.chat.${user.id || user.username}` : null
+}
+
+function loadStored(user) {
+  try {
+    const raw = sessionStorage.getItem(storageKey(user))
+    const parsed = raw ? JSON.parse(raw) : null
+    return Array.isArray(parsed) && parsed.length ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 function TypingIndicator() {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="flex items-end gap-3 mb-4">
-      <div className="w-8 h-8 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
-        <Bot size={14} className="text-accent" />
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-3 mb-5">
+      <div className="w-8 h-8 rounded-xl chat-badge flex items-center justify-center flex-shrink-0">
+        <Cpu size={14} />
       </div>
-      <div className="glass-light rounded-2xl rounded-bl-sm px-4 py-3">
+      <div className="rounded-2xl rounded-tl-md bg-bg-800/80 border border-white/8 px-4 py-3 flex items-center gap-3">
         <div className="flex gap-1.5 items-center h-4">
           {[0, 1, 2].map(i => <div key={i} className="typing-dot" style={{ animationDelay: `${i * 0.2}s` }} />)}
         </div>
+        <span className="text-[11px] font-mono text-slate-500">Checking role, policy and risk…</span>
       </div>
     </motion.div>
   )
 }
 
-function GovernancePanel({ msg }) {
-  const [open, setOpen] = useState(false)
-  const riskCfg = RISK_CONFIG[msg.risk_level] || RISK_CONFIG.low
-  const hasDetails = msg.reason || msg.triggered_rules?.length || msg.validator_notes?.length || msg.policy_evidence?.length
-  if (!hasDetails && msg.risk_level === 'low' && msg.status === 'allowed') return null
-
+function UserMessage({ msg }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-2 ml-11">
-      <button onClick={() => setOpen(v => !v)} className="flex items-center gap-1.5 text-[10px] font-mono text-slate-600 hover:text-slate-400">
-        <Info size={9} />Governance details{open ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="mt-2 glass-light rounded-xl p-3 space-y-2 border border-white/6 text-[11px] font-mono">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-20 flex-shrink-0">Risk score</span>
-                <div className="flex-1 h-1.5 rounded-full bg-bg-600 overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${(msg.risk_score || 0) * 100}%` }} transition={{ duration: 0.6 }} className="h-full rounded-full" style={{ background: riskCfg.bar }} />
-                </div>
-                <span className={`font-bold uppercase px-1.5 py-0.5 rounded border text-[9px] ${riskCfg.bg} ${riskCfg.color}`}>{msg.risk_level || 'low'}</span>
-              </div>
-              {msg.reason && <div className="px-2.5 py-2 rounded-lg bg-warn/8 border border-warn/15 text-warn/80">{msg.reason}</div>}
-              {msg.recommended_action && (
-                <div>
-                  <p className="text-slate-500 mb-1">Recommended action:</p>
-                  <div className="px-2.5 py-2 rounded-lg bg-accent/8 border border-accent/15 text-accent/80">{msg.recommended_action}</div>
-                </div>
-              )}
-              {msg.policy_evidence?.length > 0 && (
-                <div>
-                  <p className="text-slate-500 mb-1">Policy evidence:</p>
-                  {msg.policy_evidence.map(citation => (
-                    <div key={citation} className="flex items-center gap-1.5 text-slate-300 py-0.5">
-                      <BookOpen size={9} className="text-accent/60 flex-shrink-0" />{citation}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {msg.triggered_rules?.length > 0 && (
-                <div>
-                  <p className="text-slate-500 mb-1">Triggered rules:</p>
-                  {msg.triggered_rules.map(rule => <div key={rule} className="text-danger/70 py-0.5">{rule}</div>)}
-                </div>
-              )}
-              {msg.validator_notes?.length > 0 && (
-                <div>
-                  <p className="text-slate-500 mb-1">Layer-2 validator signals:</p>
-                  {msg.validator_notes.map(note => <div key={note} className="text-warn/70 py-0.5">{note}</div>)}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="flex flex-col items-end mb-5">
+      <div className="chat-primary max-w-[85%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl rounded-tr-md text-[13.5px] font-medium leading-relaxed whitespace-pre-wrap break-words">
+        {msg.content}
+      </div>
+      <span className="text-[10px] text-slate-600 font-mono mt-1 px-1">{format(new Date(msg.timestamp), 'HH:mm')}</span>
     </motion.div>
   )
 }
 
-function FeedbackBar({ msg, onFeedback }) {
-  if (msg.role !== 'assistant' || !msg.log_id) return null
+function EmptyState({ user, roleMeta, permissions, onPick }) {
   return (
-    <div className="mt-2 ml-11 flex flex-wrap gap-2">
-      <button
-        onClick={() => onFeedback(msg.log_id, 'helpful')}
-        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border ${msg.feedback === 'helpful' ? 'bg-success/10 border-success/20 text-success' : 'bg-white/5 border-white/8 text-slate-400 hover:text-success'}`}
-      >
-        <ThumbsUp size={10} className="inline mr-1" />Helpful
-      </button>
-      <button
-        onClick={() => onFeedback(msg.log_id, 'unhelpful')}
-        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border ${msg.feedback === 'unhelpful' ? 'bg-danger/10 border-danger/20 text-danger' : 'bg-white/5 border-white/8 text-slate-400 hover:text-danger'}`}
-      >
-        <ThumbsDown size={10} className="inline mr-1" />Not Helpful
-      </button>
+    <div className="max-w-3xl mx-auto py-6 sm:py-10">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-12 h-12 rounded-2xl chat-badge flex items-center justify-center">
+          <ShieldCheck size={22} />
+        </div>
+        <div>
+          <p className="text-[11px] font-mono uppercase tracking-wider text-slate-500">Signed in as {roleMeta.label}</p>
+          <p className="text-2xl sm:text-[28px] font-bold text-white leading-tight" style={{ fontFamily: "'Syne', 'Inter', sans-serif", letterSpacing: '-0.02em' }}>
+            Hi {user?.username}, <span className="chat-accent-text">ask SecureAI</span>
+          </p>
+        </div>
+      </div>
+      <p className="text-sm text-slate-400 mb-6 max-w-2xl">
+        A policy assistant that knows your role. Every question is checked against your permissions and
+        company policy, given a risk score, and logged. Answers cite their sources.
+      </p>
+      <Suggestions permissions={permissions} onPick={onPick} />
     </div>
   )
 }
 
-function ChatBubble({ msg, onFeedback }) {
-  const isUser = msg.role === 'user'
-  const statusCfg = msg.status ? STATUS_CONFIG[msg.status] : null
-  const riskCfg = RISK_CONFIG[msg.risk_level] || RISK_CONFIG.low
-  const StatusIcon = statusCfg?.icon
-
-  return (
-    <>
-      <motion.div initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3 }} className={`flex items-end gap-3 mb-2 ${isUser ? 'flex-row-reverse' : ''}`}>
-        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-accent/20 border border-accent/30' : 'bg-bg-600 border border-white/8'}`}>
-          {isUser ? <User size={13} className="text-accent" /> : <Bot size={13} className="text-slate-400" />}
-        </div>
-        <div className={`flex flex-col gap-1.5 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
-          {!isUser && msg.is_high_risk && (
-            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger/15 border border-danger/25 text-[10px] font-mono text-danger font-bold self-start">
-              <Zap size={9} />HIGH RISK EVENT FLAGGED
-            </motion.div>
-          )}
-          <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${isUser ? 'bg-accent text-bg-900 font-medium rounded-br-sm' : msg.status === 'blocked' ? 'bg-danger/10 border border-danger/20 text-danger/90 rounded-bl-sm' : msg.status === 'filtered' ? 'bg-warn/5 border border-warn/15 text-slate-200 rounded-bl-sm' : 'glass-light text-slate-200 rounded-bl-sm'}`}>
-            {msg.content}
-          </div>
-          {!isUser && msg.sources?.length > 0 && (
-            <div className="ml-1 mt-1 space-y-1">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Policy sources</p>
-              {msg.sources.map((source, index) => (
-                <div key={`${source.document_name}-${index}`} className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <BookOpen size={10} className="text-accent/70" />
-                  <span>{source.document_name}{source.section ? ` · ${source.section}` : ''}{source.page ? ` · p. ${source.page}` : ''}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className={`flex items-center gap-2 flex-wrap px-1 ${isUser ? 'flex-row-reverse' : ''}`}>
-            <span className="text-[10px] text-slate-600 font-mono">{format(new Date(msg.timestamp), 'HH:mm')}</span>
-            {statusCfg && !isUser && (
-              <span className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${statusCfg.bg} ${statusCfg.color}`}>
-                <StatusIcon size={9} />{statusCfg.label}
-              </span>
-            )}
-            {!isUser && msg.risk_level && (
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-bold uppercase ${riskCfg.bg} ${riskCfg.color}`}>{msg.risk_level}</span>
-            )}
-          </div>
-        </div>
-      </motion.div>
-      {!isUser && msg.status === 'blocked' && msg.reason && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-2 ml-11">
-          <div className="rounded-xl border border-danger/25 bg-danger/10 p-3 text-[11px] font-mono text-danger/90 space-y-2">
-            <div className="flex items-center gap-2 font-bold uppercase tracking-wide">
-              <AlertTriangle size={12} />Blocked Request Details
-            </div>
-            <p>{msg.reason}</p>
-            {!!msg.triggered_rules?.length && (
-              <p className="text-danger/80">
-                Triggered by: {msg.triggered_rules.join(', ')}
-              </p>
-            )}
-          </div>
-        </motion.div>
-      )}
-      {!isUser && <GovernancePanel msg={msg} />}
-      {!isUser && <FeedbackBar msg={msg} onFeedback={onFeedback} />}
-    </>
-  )
-}
-
 export default function ChatPage() {
-  const { user, token } = useAuth()
-  const [messages, setMessages] = useState([{
-    id: 'welcome',
-    role: 'assistant',
-    content: `Hello ${user?.username}. I'm your role-aware company policy assistant. Ask a question about an approved policy, and I'll answer using indexed policy sources.`,
-    timestamp: new Date().toISOString(),
-    status: 'allowed',
-    risk_level: 'low',
-    risk_score: 0,
-  }])
+  const { user, token, permissions } = useAuth()
+  const roleMeta = getRoleMeta(user?.role)
+  const [messages, setMessages] = useState(() => loadStored(user) || [])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [assistantStatus, setAssistantStatus] = useState(null)
   const [awaitingReply, setAwaitingReply] = useState(false)
+  const [showTray, setShowTray] = useState(false)
+  const [showPanel, setShowPanel] = useState(false)
   const replyCursorRef = useRef(null)      // id of the last async reply seen
   const seenReplyIdsRef = useRef(new Set())
-  const bottomRef = useRef(null)
+  const scrollRef = useRef(null)
   const inputRef = useRef(null)
-  const currentRole = getRoleMeta(user?.role)
-  const roleInfo = {
-    color: currentRole.value === 'admin' ? 'text-purple-400' : currentRole.value === 'hr' ? 'text-warn' : currentRole.value === 'intern' ? 'text-accent' : 'text-slate-200',
-    label: currentRole.badge,
-    desc: currentRole.desc,
-  }
+
+  const conversation = messages.filter(m => m.id !== 'welcome')
+  const isEmpty = conversation.length === 0
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    const el = scrollRef.current
+    if (!el) return
+    if (isEmpty && !loading) el.scrollTo({ top: 0 })
+    else el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [messages, loading, awaitingReply, isEmpty])
+
+  useEffect(() => {
+    const key = storageKey(user)
+    if (!key) return
+    try {
+      sessionStorage.setItem(key, JSON.stringify(messages.slice(-100)))
+    } catch {
+      // storage full or blocked; the chat still works without it
+    }
+  }, [messages, user])
+
+  // Auto-grow the composer.
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [input])
 
   // Some replies arrive asynchronously (e.g. after a hand-off), pushed over
   // the authenticated socket to this user's private room, with an HTTP
@@ -259,11 +169,19 @@ export default function ChatPage() {
   }, [])
 
   const assistantReady = assistantStatus?.rag?.ready && assistantStatus?.llm?.configured
+  const modeLabel = !assistantStatus ? 'Connecting…' : assistantReady ? `RAG + ${assistantStatus.llm.provider}` : 'Offline policy mode'
+
+  const pickSuggestion = (text) => {
+    setInput(text)
+    setShowTray(false)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
 
   const sendMessage = async (text = input) => {
     const msg = text.trim()
     if (!msg || loading) return
     setInput('')
+    setShowTray(false)
 
     const userMsg = { id: Date.now(), role: 'user', content: msg, timestamp: new Date().toISOString() }
     setMessages(prev => [...prev, userMsg])
@@ -298,13 +216,15 @@ export default function ChatPage() {
         sources: sources || [],
         feedback: null,
       }])
-    } catch {
+    } catch (err) {
+      const serverError = err?.response?.data?.error
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
-        content: 'Connection error. Please check the backend server is running.',
+        content: serverError || 'Connection error. Please check that the backend server is running.',
         timestamp: new Date().toISOString(),
-        status: 'blocked',
+        status: err?.response?.status === 403 ? 'blocked' : 'error',
+        reason: serverError,
         risk_level: 'low',
         risk_score: 0,
       }])
@@ -316,15 +236,7 @@ export default function ChatPage() {
 
   const clearChat = async () => {
     await api.post('/chat/clear').catch(() => {})
-    setMessages([{
-      id: 'welcome',
-      role: 'assistant',
-      content: `Chat cleared. Ask me a question about a company policy, and I'll look for relevant indexed sources.`,
-      timestamp: new Date().toISOString(),
-      status: 'allowed',
-      risk_level: 'low',
-      risk_score: 0,
-    }])
+    setMessages([])
   }
 
   const submitFeedback = async (logId, value) => {
@@ -346,62 +258,81 @@ export default function ChatPage() {
     window.URL.revokeObjectURL(url)
   }
 
+  const sidebar = <ChatSidebar roleMeta={roleMeta} permissions={permissions} messages={messages} status={assistantStatus} />
+  const nearLimit = input.length > MAX_CHARS * 0.8
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 glass flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
-              <Cpu size={16} className="text-accent" />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="chat-scope flex flex-col h-full min-h-0">
+      {/* Header */}
+      <header className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-white/5 glass flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl chat-badge flex items-center justify-center">
+              <Cpu size={16} />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-success border border-bg-900" />
+            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-bg-900 ${assistantReady ? 'bg-success' : 'bg-warn'}`} />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-white">SecureAI Chatbot</h2>
-            <p className="text-[10px] text-slate-500 font-mono">Role-aware policy assistant · {assistantReady ? 'RAG + LLM configured' : 'Setup required'}</p>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-white leading-tight">SecureAI Assistant</h2>
+            <p className="text-[10.5px] text-slate-500 font-mono truncate">Role-aware · policy-checked · audited · {modeLabel}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-light border border-white/8 ${roleInfo.color}`}>
-            <ShieldAlert size={12} />
-            <span className="text-xs font-mono font-bold">{roleInfo.label}</span>
-            <span className="text-[10px] text-slate-500 hidden sm:block">- {roleInfo.desc}</span>
-          </div>
-          <button onClick={exportConversation} className="p-2 rounded-lg hover:bg-white/5 border border-white/8 text-slate-400 hover:text-accent">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-[11px] font-mono font-bold ${roleMeta.color}`}>
+            {roleMeta.badge}
+          </span>
+          <button onClick={() => setShowPanel(true)} className="xl:hidden p-2 rounded-lg border border-white/8 text-slate-400 hover:text-accent hover:bg-white/5" title="Access & risk" aria-label="Show access and risk panel">
+            <PanelRight size={14} />
+          </button>
+          <button onClick={exportConversation} className="p-2 rounded-lg border border-white/8 text-slate-400 hover:text-accent hover:bg-white/5" title="Export conversation (CSV)" aria-label="Export conversation">
             <Download size={14} />
           </button>
-          <button onClick={clearChat} className="p-2 rounded-lg hover:bg-danger/10 border border-transparent hover:border-danger/20 text-slate-500 hover:text-danger">
+          <button onClick={clearChat} disabled={isEmpty} className="p-2 rounded-lg border border-white/8 text-slate-400 hover:text-danger hover:bg-danger/10 disabled:opacity-40 disabled:pointer-events-none" title="Clear conversation" aria-label="Clear conversation">
             <Trash2 size={14} />
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 min-h-0 px-6 py-4">
-        {assistantStatus && !assistantReady && (
-          <div className="mb-3 rounded-xl border border-warn/20 bg-warn/5 px-4 py-3 text-xs text-warn/90">
-            Chat needs setup before it can answer from policies.
-            {!assistantStatus.llm?.configured && ` Configure an LLM provider (currently: ${assistantStatus.llm?.provider || 'unknown'}).`}
-            {!assistantStatus.rag?.sentence_transformers_installed && ' Install the RAG packages from backend/requirements-rag.txt.'}
-            {!assistantStatus.rag?.qdrant_client_installed && ' qdrant-client is not installed.'}
-            {!assistantStatus.rag?.index_exists && ' Build the policy index with backend/scripts/ingest_policies.py.'}
+      <div className="flex-1 min-h-0 flex gap-4 px-3 sm:px-6 py-4">
+        {/* Conversation */}
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col rounded-2xl glass-light overflow-hidden">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 pt-5">
+            {isEmpty
+              ? <EmptyState user={user} roleMeta={roleMeta} permissions={permissions} onPick={pickSuggestion} />
+              : (
+                <div className="max-w-4xl mx-auto">
+                  <AnimatePresence initial={false}>
+                    {conversation.map(msg => (msg.role === 'user'
+                      ? <UserMessage key={msg.id} msg={msg} />
+                      : <AssistantMessage key={msg.id} msg={msg} onFeedback={submitFeedback} />))}
+                    {(loading || awaitingReply) && <TypingIndicator key="typing" />}
+                  </AnimatePresence>
+                </div>
+              )}
           </div>
-        )}
-        <div className="flex-1 min-h-0 flex flex-col xl:flex-row gap-4">
-          <div className="flex-1 min-h-0 glass-light border border-white/8 rounded-2xl overflow-hidden flex flex-col">
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
-              <AnimatePresence initial={false}>
-                {messages.map(msg => <ChatBubble key={msg.id} msg={msg} onFeedback={submitFeedback} />)}
-                {(loading || awaitingReply) && <TypingIndicator key="typing" />}
-              </AnimatePresence>
-              <div ref={bottomRef} />
-            </div>
 
-            <div className="px-6 py-4 border-t border-white/5 flex-shrink-0">
-              <div className="flex gap-3 items-end">
+          {/* Composer */}
+          <div className="px-3 sm:px-6 pb-4 pt-2 flex-shrink-0">
+            <div className="max-w-4xl mx-auto">
+              <AnimatePresence>
+                {showTray && !isEmpty && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                    className="mb-2 rounded-2xl bg-bg-800/95 border border-white/10 p-3 shadow-card"
+                  >
+                    <div className="flex justify-end -mb-6">
+                      <button onClick={() => setShowTray(false)} className="p-1 rounded-md text-slate-500 hover:text-slate-200" aria-label="Close suggestions"><X size={13} /></button>
+                    </div>
+                    <Suggestions permissions={permissions} onPick={pickSuggestion} compact />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="flex items-end gap-2">
                 <textarea
                   ref={inputRef}
                   value={input}
+                  maxLength={MAX_CHARS}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -410,22 +341,61 @@ export default function ChatPage() {
                     }
                   }}
                   rows={1}
-                  className="flex-1 px-4 py-3 rounded-xl bg-bg-800 border border-white/8 text-white placeholder-slate-600 focus:outline-none focus:border-accent/50 focus:shadow-glow transition-all text-sm resize-none font-mono leading-relaxed"
-                  placeholder="Ask about a company policy... (Enter to send)"
-                  style={{ minHeight: '48px', maxHeight: '120px' }}
+                  aria-label="Message SecureAI"
+                  className="flex-1 block px-4 py-3 text-[13.5px] resize-none leading-relaxed placeholder-slate-600"
+                  placeholder="Ask about a policy, a project, or what your role can access…"
+                  style={{ minHeight: '48px' }}
                 />
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => sendMessage()} disabled={loading || !input.trim()} className="w-12 h-12 rounded-xl bg-accent text-bg-900 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-dim transition-all shadow-glow flex-shrink-0">
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => sendMessage()}
+                  disabled={loading || !input.trim()}
+                  className="chat-primary w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Send message"
+                >
                   <Send size={16} />
                 </motion.button>
               </div>
-              <p className="text-[10px] text-slate-600 mt-2 font-mono text-center">
-                Answers are grounded in indexed policy documents and tailored to your role.
+              <div className="flex items-center justify-between gap-2 mt-1.5 px-1">
+                <button
+                  onClick={() => setShowTray(v => !v)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11.5px] transition-colors ${isEmpty ? 'invisible' : ''} ${showTray ? 'bg-accent/10 text-accent' : 'text-slate-500 hover:text-accent hover:bg-white/5'}`}
+                >
+                  <Sparkles size={12} />Suggestions
+                </button>
+                <span className={`text-[10.5px] font-mono ${nearLimit ? 'text-warn' : 'text-slate-600'}`}>
+                  {nearLimit ? `${input.length}/${MAX_CHARS}` : <span className="hidden sm:inline">Enter to send · Shift+Enter for new line</span>}
+                </span>
+              </div>
+              <p className="text-[10.5px] text-slate-600 mt-1 text-center">
+                Every message is checked against your role and company policy, risk-scored, and recorded in the audit log.
               </p>
             </div>
           </div>
-
         </div>
+
+        {/* Side panel (desktop) */}
+        <aside className="hidden xl:block w-80 flex-shrink-0 overflow-y-auto">{sidebar}</aside>
       </div>
+
+      {/* Side panel (mobile drawer) */}
+      <AnimatePresence>
+        {showPanel && (
+          <motion.div className="fixed inset-0 z-50 xl:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPanel(false)} />
+            <motion.aside
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.25 }}
+              className="absolute right-0 top-0 bottom-0 w-[min(22rem,100%)] bg-bg-900 border-l border-white/10 p-4 overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-bold text-white">Access & risk</p>
+                <button onClick={() => setShowPanel(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5" aria-label="Close panel"><X size={15} /></button>
+              </div>
+              {sidebar}
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

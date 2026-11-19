@@ -62,6 +62,8 @@ exact public origin if the frontend is later split into a separate service.
 | Admin | admin | ADMINCODE1 | admin123 |
 | HR | hr_jane | HRCODE0001 | hr123 |
 | Intern | intern_bob | INTCODE001 | intern123 |
+| Data Engineer | de_arjun | DENGCODE01 | dataeng123 |
+| Data Analyst | da_meera | DANACODE01 | analyst123 |
 
 Demo credentials are for local use only. Create further roles (Manager, Software Engineer, Supervisor, Guest…) in **Admin → User Access**.
 
@@ -80,7 +82,7 @@ Configure `AI_PROVIDER` in `backend/.env` as `gemini`, `openai`, or `ollama`, th
 python scripts/ingest_policies.py
 ```
 
-Restart the backend. The chatbot status shows whether the LLM and policy retrieval are ready. It will not produce policy answers from the demo question bank if either service is unavailable.
+Restart the backend. The chatbot status shows whether the LLM and policy retrieval are ready. If either service is unavailable it says so instead of answering.
 
 ## Optional feature packs
 | Pack | Install | Enables |
@@ -93,7 +95,7 @@ Restart the backend. The chatbot status shows whether the LLM and policy retriev
 All documented in `backend/.env.example` (every variable there is actually read by the code): `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_ACCESS_TOKEN_EXPIRES_HOURS`, `CORS_ORIGINS` (**must include the origin you open the app from** — Socket.IO enforces it), `DATABASE_URL`, `PORT`, `DEBUG` (keep `0`), `AI_PROVIDER` + provider keys.
 
 ## Database, tests, evaluation
-- Schema: `docs/DATABASE_SCHEMA.md` (27 tables, SQLite, auto-created and auto-seeded at startup).
+- Schema: `docs/DATABASE_SCHEMA.md` (26 tables, SQLite, auto-created and auto-seeded at startup).
 - Tests: `cd backend && python -m pytest -v` → see `docs/TESTING.md` (**read the verification-status section**).
 - Risk-engine evaluation: `python scripts/evaluate_risk_engine.py` (run: 80 % decision / 86.7 % risk accuracy on 15 scenarios, with the 3 mismatches explained). RAG evaluation harness is included but **not yet run**.
 

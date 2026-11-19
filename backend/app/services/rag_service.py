@@ -92,8 +92,8 @@ def sanitize_retrieved_content(text: str) -> str:
     instruction ("ignore previous instructions...") -- since policy
     documents are admin-uploaded content, not user input, this is a lower-
     probability attack surface than a user prompt injection, but the
-    org's own Data Privacy & Classification Policy and AI Security &
-    Incident Response Policy are literally retrievable content, so the
+    org's own Data Privacy Policy and Incident Response and Security
+    Monitoring Policy are literally retrievable content, so the
     principle still applies defense-in-depth.
     """
     import re

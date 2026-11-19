@@ -127,6 +127,7 @@ export default function PolicySourcesPage() {
           </div>
         )}
         {!loading && !error && documents.length > 0 && (
+          <div className="ui-table-scroll">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/5 text-slate-500 uppercase text-[10px] tracking-wider">
@@ -172,6 +173,7 @@ export default function PolicySourcesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

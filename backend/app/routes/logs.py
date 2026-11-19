@@ -4,15 +4,18 @@ from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, jsonify, make_response, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
 
 from app import db
 from app.models.audit_log import AuditLog
+from app.models.ghost_investigation import ThreatAlert
 from app.models.governance_case import GovernanceCase
 from app.models.question_feedback import QuestionFeedback
+from app.models.risk_event import RiskEvent
 from app.models.user import User
-from app.services.ai_service import get_question_bank_analytics, infer_question_category
+from app.services.audit import record_audit_event
 from app.services.governance import SUSPICIOUS_QUERY_THRESHOLD
+from app.services.ledger import seal_pending
 from app.utils.authz import get_current_user
 
 logs_bp = Blueprint("logs", __name__)
@@ -24,12 +27,29 @@ def _require_admin():
 
 
 def _serialize_logs(logs: list[AuditLog]) -> list[dict]:
-    serialized = []
+    return [log.to_dict() for log in logs]
+
+
+def _chat_quality_analytics(logs: list[dict], feedback_rows: list[dict]) -> dict:
+    """Blocked AI requests per role, and the questions users most often
+    rated unhelpful (from the thumbs-down button in the chat)."""
+    blocked_by_role = {}
     for log in logs:
-        row = log.to_dict()
-        row["category"] = infer_question_category(log.query)
-        serialized.append(row)
-    return serialized
+        if log.get("status") == "blocked":
+            role = log.get("role", "unknown")
+            blocked_by_role[role] = blocked_by_role.get(role, 0) + 1
+
+    unhelpful_counts = {}
+    for row in feedback_rows:
+        query_text = str(row.get("query", "")).strip()
+        if row.get("value") == "unhelpful" and query_text:
+            unhelpful_counts[query_text] = unhelpful_counts.get(query_text, 0) + 1
+
+    low_quality = sorted(
+        ({"query": query, "count": count} for query, count in unhelpful_counts.items()),
+        key=lambda item: (-item["count"], item["query"].lower()),
+    )[:5]
+    return {"blocked_by_role": blocked_by_role, "low_quality_responses": low_quality}
 
 
 @logs_bp.route("/logs", methods=["GET"])
@@ -44,7 +64,6 @@ def get_logs():
     filter_risk = request.args.get("risk_level", "").strip()
     filter_high = request.args.get("high_risk", "").strip()
     filter_query = request.args.get("query", "").strip().lower()
-    filter_category = request.args.get("category", "").strip().lower()
     filter_event_type = request.args.get("event_type", "").strip()
     filter_date_from = request.args.get("date_from", "").strip()
     filter_date_to = request.args.get("date_to", "").strip()
@@ -93,18 +112,10 @@ def get_logs():
     page = max(page, 1)
     per_page = min(max(per_page, 1), 100)
     start = (page - 1) * per_page
-    if filter_category:
-        # "category" is inferred in Python (question-bank matching), not
-        # stored in a column, so this one filter can't be pushed into SQL.
-        logs = [log for log in query.all() if (infer_question_category(log.query) or "").lower() == filter_category]
-        total = len(logs)
-        paginated = logs[start:start + per_page]
-    else:
-        # Phase 32: every other filter is SQL, so count + slice in the
-        # database instead of loading the entire matching set into memory
-        # just to return one page of it.
-        total = query.count()
-        paginated = query.offset(start).limit(per_page).all()
+    # Every filter is SQL, so count + slice in the database instead of
+    # loading the entire matching set into memory for one page.
+    total = query.count()
+    paginated = query.offset(start).limit(per_page).all()
 
     return jsonify({
         "logs": _serialize_logs(paginated),
@@ -124,7 +135,7 @@ def get_stats():
     # Phase 12 put non-chat events (login, admin actions, ...) in the same
     # table. The dashboard's AI-governance counters must only count AI
     # requests -- otherwise a failed login (status="blocked") inflates
-    # "blocked requests" and login rows pollute the question-bank analytics.
+    # "blocked requests" and login rows pollute the chat analytics.
     ai_only = or_(AuditLog.event_type.is_(None), AuditLog.event_type == "ai_request")
     audit_logs_query = db.session.query(AuditLog).filter(ai_only)
 
@@ -232,7 +243,7 @@ def get_stats():
         usage_over_time.append({"date": day, "count": usage_by_day.get(day, 0)})
 
     # Phase 32: this used to load EVERY audit row into memory on each
-    # dashboard visit. The question-bank analytics only need recent AI
+    # dashboard visit. The chat-quality analytics only need recent AI
     # requests; capping at the latest 2000 keeps the cost bounded as the
     # table grows.
     all_logs = [
@@ -257,7 +268,7 @@ def get_stats():
             "note": feedback.note,
             "query": query_text,
         })
-    bank_analytics = get_question_bank_analytics(all_logs, feedback_rows)
+    chat_analytics = _chat_quality_analytics(all_logs, feedback_rows)
 
     return jsonify({
         "total": total,
@@ -294,7 +305,7 @@ def get_stats():
             for item in suspicious_users
         ],
         "recent_high_risk": _serialize_logs(recent_high_risk),
-        **bank_analytics,
+        **chat_analytics,
     }), 200
 
 
@@ -308,7 +319,7 @@ def export_logs():
     logs = db.session.query(AuditLog).order_by(AuditLog.timestamp.desc()).all()
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=[
-        "timestamp", "username", "role", "category", "query", "status", "risk_level", "risk_score", "reason",
+        "timestamp", "username", "role", "query", "status", "risk_level", "risk_score", "reason",
     ])
     writer.writeheader()
     for log in logs:
@@ -316,7 +327,6 @@ def export_logs():
             "timestamp": log.timestamp.isoformat(),
             "username": log.username,
             "role": log.role,
-            "category": infer_question_category(log.query) or "",
             "query": log.query,
             "status": log.status,
             "risk_level": log.risk_level,
@@ -328,6 +338,56 @@ def export_logs():
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
     response.headers["Content-Disposition"] = "attachment; filename=secureai-audit-logs.csv"
     return response
+
+
+@logs_bp.route("/logs/<int:log_id>", methods=["DELETE"])
+@jwt_required()
+def delete_log(log_id):
+    """Admin-only removal of a single audit entry (e.g. a junk demo prompt).
+
+    Rows that reference the entry are detached or removed, and every block
+    after it is re-sealed so the Blockchain Explorer chain still verifies.
+    The deletion itself is recorded as an admin_action, without the deleted
+    query text.
+    """
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    entry = db.session.get(AuditLog, log_id)
+    if not entry:
+        return jsonify({"error": "Log entry not found"}), 404
+
+    deleted_seq = entry.chain_seq
+    deleted_user = entry.username
+
+    QuestionFeedback.query.filter_by(audit_log_id=log_id).delete()
+    RiskEvent.query.filter_by(audit_log_id=log_id).update({"audit_log_id": None})
+    ThreatAlert.query.filter_by(audit_log_id=log_id).update({"audit_log_id": None})
+    db.session.delete(entry)
+    db.session.flush()
+
+    # Re-chain everything after the removed block so verification still passes.
+    connection = db.session.connection()
+    if deleted_seq is not None:
+        connection.execute(
+            update(AuditLog.__table__)
+            .where(AuditLog.__table__.c.chain_seq > deleted_seq)
+            .values(chain_seq=None, chain_prev_hash=None, chain_hash=None)
+        )
+    seal_pending(connection)
+    db.session.expire_all()
+
+    record_audit_event(
+        "admin_action",
+        user=admin,
+        description=f"Admin '{admin.username}' deleted audit log entry #{log_id}",
+        resource=f"audit_log:{log_id}",
+        metadata={"action": "delete_audit_log", "log_id": log_id, "log_user": deleted_user},
+        commit=False,
+    )
+    db.session.commit()
+    return jsonify({"message": "Log entry deleted", "id": log_id}), 200
 
 
 @logs_bp.route("/logs/suspicious/<int:user_id>", methods=["PATCH"])
