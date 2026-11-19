@@ -230,3 +230,28 @@ html.theme-anim *::after {
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .theme-toggle:hover { background: rgb(var(--accent-soft) / 0.2); transform: rotate(-12deg); }
+
+/* ── Chatbot palette (scoped to the chat page) ───────────────────────────────
+   Built only from the app theme: sage on paper (light), ember + warm beige on
+   ink (dark). Status colours are used only for decisions/risk. Dark mode has
+   no green: "allowed / low risk" uses the theme's warm beige. */
+:root[data-theme='dark'] .chat-scope {
+  --success: 203 189 167;
+}
+.chat-scope .chat-primary {
+  background: linear-gradient(135deg, var(--btn-a), var(--btn-b));
+  color: var(--btn-ink);
+  box-shadow: 0 10px 26px -14px rgb(var(--btn-glow) / 0.7);
+}
+.chat-scope .chat-primary svg { color: var(--btn-ink); }
+.chat-scope button.chat-primary { transition: transform 0.15s ease, filter 0.15s ease; }
+.chat-scope button.chat-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--btn-hover-a), var(--btn-hover-b));
+  transform: translateY(-1px);
+}
+.chat-scope .chat-accent-text { color: rgb(var(--accent)); }
+.chat-scope .chat-badge {
+  background: rgb(var(--accent) / 0.1);
+  border: 1px solid rgb(var(--accent) / 0.3);
+  color: rgb(var(--accent));
+}

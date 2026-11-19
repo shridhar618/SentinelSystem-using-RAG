@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     envVars:
       - key: SECRET_KEY
@@ -21,9 +21,12 @@ services:
         value: "10000"
       - key: DEBUG
         value: "0"
+      # Gemini answers. Paste a free Google AI Studio key as GEMINI_API_KEY in
+      # the Render dashboard; without one the chat falls back to offline
+      # policy mode. gemini-2.5-flash is no longer offered to new keys.
       - key: AI_PROVIDER
-        value: mock
-    disk:
-      name: secureai-data
-      mountPath: /app/instance
-      sizeGB: 1
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite

@@ -6,7 +6,7 @@ All endpoints are JSON. Authenticated endpoints expect `Authorization: Bearer <J
 Errors are always `{"error": "<message>"}`; success confirmations use `{"message": "..."}`.
 Common statuses: `400` validation, `401` missing/expired token, `403` role or permission denied, `404` not found, `413` request too large (8 MB cap), `429` login rate limit.
 
-**113 endpoints.**
+**107 endpoints.**
 
 
 ## admin
@@ -58,20 +58,7 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 | POST | `/api/chat` | any authenticated user |  |
 | POST | `/api/chat/clear` | any authenticated user |  |
 | GET | `/api/chat/export` | any authenticated user |  |
-| GET | `/api/chat/favorites` | any authenticated user |  |
-| DELETE | `/api/chat/favorites/<question_id>` | any authenticated user |  |
-| POST | `/api/chat/favorites/<question_id>` | any authenticated user |  |
 | POST | `/api/chat/feedback` | any authenticated user |  |
-| GET | `/api/chat/questions` | any authenticated user |  |
-| POST | `/api/chat/questions` | admin (inline check) |  |
-| DELETE | `/api/chat/questions/<question_id>` | admin (inline check) |  |
-| PUT | `/api/chat/questions/<question_id>` | admin (inline check) |  |
-| GET | `/api/chat/questions/export` | any authenticated user |  |
-| GET | `/api/chat/questions/history` | admin (inline check) |  |
-| POST | `/api/chat/questions/import` | admin (inline check) |  |
-| GET | `/api/chat/questions/review-queue` | admin (inline check) |  |
-| PATCH | `/api/chat/questions/review-queue/<queue_id>` | admin (inline check) |  |
-| GET | `/api/chat/questions/search` | any authenticated user |  |
 | GET | `/api/chat/status` | any authenticated user |  |
 | GET | `/api/chat/updates` | any authenticated user | Delivery fallback for assistant replies that arrive asynchronously (used when the socket is unavailable). Returns only replies addressed to the calling user. |
 
@@ -200,6 +187,18 @@ Common statuses: `400` validation, `401` missing/expired token, `403` role or pe
 | Method | Path | Access | Notes |
 |---|---|---|---|
 | GET | `/api/security-events` | permission: `ai_governance_admin` |  |
+
+## user_management
+
+| Method | Path | Access | Notes |
+|---|---|---|---|
+| GET | `/api/admin/login-activity` | admin (inline check) |  |
+| GET | `/api/admin/users` | admin (inline check) |  |
+| DELETE | `/api/admin/users/<int:user_id>` | admin (inline check) |  |
+| GET | `/api/admin/users/<int:user_id>` | admin (inline check) |  |
+| PUT | `/api/admin/users/<int:user_id>` | admin (inline check) |  |
+| POST | `/api/admin/users/<int:user_id>/reset-code` | admin (inline check) |  |
+| GET | `/api/admin/users/summary` | admin (inline check) |  |
 
 ## users
 

@@ -18,7 +18,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Server image: use OpenCV's headless build (same face-detection APIs, no
+# libGL/GUI system libraries needed on the slim base image) and skip pytest.
+RUN sed -i -e 's/^opencv-contrib-python/opencv-contrib-python-headless/' -e '/^pytest/d' requirements.txt \
+    && pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./
 COPY --from=frontend-build /frontend/dist ./frontend-dist

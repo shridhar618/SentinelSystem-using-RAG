@@ -1,4 +1,6 @@
 node_modules/
+node_modules*/
+node_modules*
 dist/
 build/
 .next/
@@ -29,3 +31,21 @@ backend/qdrant_data/
 backend/instance/*.db
 !.env.example
 !backend/.env.example
+
+# OS / editor junk
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+*.icloud
+*.icloud-stale/
+.idea/
+*.swp
+*~
+
+# Logs and test/coverage output
+*.log
+npm-debug.log*
+.coverage
+htmlcov/
+coverage/

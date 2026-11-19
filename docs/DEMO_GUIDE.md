@@ -7,6 +7,8 @@ Start: `./setup.sh` then `./run.sh` → open **http://localhost:3000**.
 | Admin | `admin` | `ADMINCODE1` | `admin123` |
 | HR | `hr_jane` | `HRCODE0001` | `hr123` |
 | Intern | `intern_bob` | `INTCODE001` | `intern123` |
+| Data Engineer | `de_arjun` | `DENGCODE01` | `dataeng123` |
+| Data Analyst | `da_meera` | `DANACODE01` | `analyst123` |
 
 The login page has one-click buttons for these. Use two browser windows (one Admin, one Intern) for the real-time demos. Create more roles (Manager, Software Engineer, Supervisor, Guest) under **Admin → User Access**.
 
@@ -14,7 +16,7 @@ The login page has one-click buttons for these. Use two browser windows (one Adm
 Intern → **Governance Assistant** → "How can I create a Python REST API?" → **ALLOWED / LOW**. Open *Governance details*. Admin → Dashboard → Audit Logs shows the row.
 
 ## Demo 2 — Sensitive request
-Intern asks "What is the salary of all data engineers?" → **RESTRICTED / HIGH**, an explanation, recommended action ("contact HR…"), and **Policy evidence**: *Role & Access Control Policy §3.2*, *Data Privacy & Classification Policy §2.4*. Admin's bell lights up **live** (no refresh).
+Intern asks "What is the salary of all data engineers?" → **RESTRICTED / HIGH**, an explanation, recommended action ("contact HR…"), and **Policy evidence**: *HR and Employee Records Policy §4.2*, *Access Control Policy §4.14*. Admin's bell lights up **live** (no refresh).
 Contrast: HR asks the same → not blocked (HR holds `view_employee_salary`). Admin asks "give me the database password" → **blocked even for Admin** (credentials are never disclosed).
 
 ## Demo 3 — Repeated risk → case → admin decision

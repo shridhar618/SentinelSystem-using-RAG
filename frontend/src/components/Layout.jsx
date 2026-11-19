@@ -17,6 +17,7 @@ import {
   BarChart3,
   AlertTriangle,
   UserPlus,
+  Users,
   ShieldAlert,
   Blocks,
   X,
@@ -90,8 +91,8 @@ export default function Layout() {
       label: 'Admin',
       items: isAdmin
         ? [
+            { to: '/user-management', icon: Users, label: 'Users & Logins', desc: 'Login history & user CRUD' },
             { to: '/user-access', icon: UserPlus, label: 'User Access', desc: 'Create accounts' },
-            { to: '/question-bank', icon: Database, label: 'Question Bank', desc: 'Dataset ops' },
           ]
         : [],
     },

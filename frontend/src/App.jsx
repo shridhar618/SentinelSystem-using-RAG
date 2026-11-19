@@ -11,7 +11,6 @@ import GovernanceCasesPage from './pages/GovernanceCasesPage'
 import PolicySourcesPage from './pages/PolicySourcesPage'
 import WorkloadPage from './pages/WorkloadPage'
 import MyDashboardPage from './pages/MyDashboardPage'
-import QuestionBankPage from './pages/QuestionBankPage'
 import FaceAttendancePage from './pages/FaceAttendancePage'
 import FaceUnlockPage from './pages/FaceUnlockPage'
 import GhostModePage from './pages/GhostModePage'
@@ -21,6 +20,7 @@ import MyWorkPage from './pages/MyWorkPage'
 import WorkBoardPage from './pages/WorkBoardPage'
 import WorkEscalationsPage from './pages/WorkEscalationsPage'
 import AdminCreateUserPage from './pages/AdminCreateUserPage'
+import UserManagementPage from './pages/UserManagementPage'
 import BlockchainExplorer from './modules/explorer'
 import { isManagerRole } from './utils/roles'
 
@@ -109,6 +109,12 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
+        <Route path="user-management" element={
+          <ProtectedRoute adminOnly>
+            <UserManagementPage />
+          </ProtectedRoute>
+        } />
+
         <Route path="ghost-mode" element={
           <ProtectedRoute adminOnly>
             <GhostModePage />
@@ -118,12 +124,6 @@ function AppRoutes() {
         <Route path="attack-sim" element={
           <ProtectedRoute adminOnly>
             <AttackSimPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="question-bank" element={
-          <ProtectedRoute adminOnly>
-            <QuestionBankPage />
           </ProtectedRoute>
         } />
 

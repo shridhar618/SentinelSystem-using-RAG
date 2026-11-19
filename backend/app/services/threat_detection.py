@@ -82,6 +82,7 @@ CATEGORY_RULES = {
         r"\b(?:hack|break\s+into|take\s+over|compromise|hijack)\b[^.?!\n]{0,30}\b(?:account|system|server|portal|platform|admin\s*panel|dashboard)",
         r"\b(?:access|open|get\s+into)\b[^.?!\n]{0,30}\b(?:admin\s*(?:panel|dashboard|page|console|area)|restricted\s+(?:area|page|section|files?|data))",
         r"\bunauthori[sz]ed\s+access\b[^.?!\n]{0,30}\b(?:to|into)\b",
+        r"\b(?:exploit|attack|hack|pwn|ddos|breach|crash|take\s+down)\b[^.?!\n]{0,30}\b(?:login|server|website|site|web\s*app|app|application|portal|system|network|database|api|endpoint|admin)\b",
     ]),
     "sensitive_data_extraction": (45, [
         rf"\b{_ACQUIRE}\b[^.?!\n]{{0,50}}\b(?:all|every|full|complete|entire|bulk)\b[^.?!\n]{{0,30}}\b(?:users?|students?|employees?|records?|grades?|marks|emails?|phone\s*numbers?|addresses|salar(?:y|ies)|ssns?|personal\s*(?:data|info\w*|details)|pii)",

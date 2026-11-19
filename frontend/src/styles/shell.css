@@ -397,3 +397,29 @@
 .ui-main span:is([class*='text-[9px]'], [class*='text-[10px]'], [class*='text-[11px]'])[class*='border']:not(.rv *) {
   border-radius: 999px;
 }
+
+/* ==========================================================================
+   Phones. Page headers across the app are `flex justify-between` rows of
+   title + actions with no wrap, which pushed Refresh / Export / filters off
+   the right edge; the display h1 also outgrew a 390px screen.
+   ========================================================================== */
+@media (max-width: 640px) {
+  .ui-main h1:not(.rv h1) {
+    font-size: clamp(1.45rem, 7.2vw, 2rem);
+    overflow-wrap: anywhere;
+  }
+  /* Any row that holds the page title wraps its actions underneath. */
+  .ui-main .flex.justify-between:has(h1:not(.rv h1)) {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+  }
+  .ui-main .flex.justify-between:has(h1:not(.rv h1)) > * { min-width: 0; }
+  .ui-main .flex.justify-between:has(h1:not(.rv h1)) > .flex {
+    flex-wrap: wrap;
+  }
+  /* Wide tables scroll inside their card instead of being clipped. */
+  .ui-main .ui-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ui-main .ui-table-scroll > table { min-width: 36rem; }
+  /* Page padding: px-6 (24px) is a lot on a 360px screen. */
+  .ui-main .px-6 { padding-left: 1rem; padding-right: 1rem; }
+}
