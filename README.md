@@ -1,5 +1,7 @@
 # SecureAI — AI Governance & Accountability Platform
 
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white) ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=white) ![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?logo=socketdotio&logoColor=white)
+
 An internal organizational platform that makes AI use **role-aware, policy-checked, auditable and accountable**. MCA final-year capstone.
 
 > Built on top of the open-source *SentinelSystem* codebase (governed chat, work management, attendance, messaging). This project adds the governance core: permissions, rule-based compliance, risk scoring, cumulative escalation, governance cases, alerts, audit, policy management, and the employee/admin dashboards.
